@@ -992,6 +992,222 @@ ls -la test/promql/tests/</code></pre>
     return html
 
 
+def build_section_4_reference(source_content: Dict[str, str]) -> str:
+    """Build Section 4: Reference Materials - Observability, SLOs, Dashboards, and Tools."""
+
+    # Extract dashboard links dynamically
+    dashboards_content = source_content.get('dashboards', '')
+    dashboard_links = extract_dashboard_links(dashboards_content)
+
+    # Part 1: Observability & SLO content (static HTML, ~85 lines)
+    html = """
+<section id="section-4">
+    <h2>4. Reference Materials</h2>
+
+    <p>This section provides reference material for common tasks, including observability concepts, SLO definitions, dashboard links, graph types, and troubleshooting resources.</p>
+
+    <h3 id="section-4-1">Understanding Observability & SLOs</h3>
+
+    <p>Observability is the practice of understanding system behavior by examining its outputs. The three pillars of observability are:</p>
+
+    <h4>1. Metrics</h4>
+    <p>Quantitative measurements of system behavior. Examples:</p>
+    <ul>
+        <li><strong>Request latency</strong> - How long requests take to complete</li>
+        <li><strong>Error rate</strong> - Percentage of failed requests</li>
+        <li><strong>Throughput</strong> - Requests per second the system handles</li>
+        <li><strong>Resource utilization</strong> - CPU, memory, disk usage</li>
+    </ul>
+
+    <p>In Konflux, we use <strong>Prometheus</strong> to collect and store metrics. PromQL is the language we use to query these metrics.</p>
+
+    <h4>2. Logs</h4>
+    <p>Detailed event records from applications. Logs capture:</p>
+    <ul>
+        <li><strong>Errors and warnings</strong> - When something goes wrong</li>
+        <li><strong>Audit trails</strong> - Who did what and when</li>
+        <li><strong>Debug information</strong> - Details for troubleshooting</li>
+    </ul>
+
+    <h4>3. Traces</h4>
+    <p>End-to-end request journeys through distributed systems. Traces show:</p>
+    <ul>
+        <li><strong>Request path</strong> - Which services a request flows through</li>
+        <li><strong>Latency breakdown</strong> - Where time is spent</li>
+        <li><strong>Dependencies</strong> - How services interact</li>
+    </ul>
+
+    <h3 id="section-4-2">Service Level Objectives (SLOs)</h3>
+
+    <p>An SLO is a target for how well a service should perform. SLOs have three components:</p>
+
+    <h4>Service Level Indicator (SLI)</h4>
+    <p>A metric that measures what matters to users. Examples:</p>
+    <ul>
+        <li>Availability: Percentage of successful requests</li>
+        <li>Latency: Percentage of requests completing within acceptable time</li>
+        <li>Error rate: Percentage of requests that don't fail</li>
+    </ul>
+
+    <h4>Service Level Objective (SLO)</h4>
+    <p>The target for the SLI. Examples:</p>
+    <ul>
+        <li>"99% availability" - The SLI must stay above 99%</li>
+        <li>"95th percentile latency under 500ms" - 95% of requests complete within 500ms</li>
+        <li>"99.9% success rate" - Less than 0.1% errors</li>
+    </ul>
+
+    <h4>Service Level Agreement (SLA)</h4>
+    <p>A contractual commitment about the SLO. SLAs define what happens if we miss the SLO (refunds, credits, etc).</p>
+
+    <div class="callout info">
+        <div class="callout-title">ℹ️ Error Budgets</div>
+        <p>If your SLO is 99% availability, you have a 1% "error budget" per month. This is how much downtime you can have before violating the SLO. Once the budget is exhausted, you must focus on stability over new features.</p>
+    </div>
+
+    <h3 id="section-4-3">Dashboard Links</h3>
+
+    <p>Use these dashboards to monitor Konflux metrics and SLOs:</p>
+"""
+
+    # Part 2: Dashboard links (DYNAMIC - iterates through extracted links)
+    if dashboard_links:
+        html += """
+    <div class="callout info">
+        <div class="callout-title">ℹ️ Dashboard Access</div>
+        <p>Most dashboards require VPN and authentication. Contact your team lead for access if you don't have it.</p>
+    </div>
+
+    <ul>
+"""
+        for dashboard in dashboard_links:
+            html += f'        <li><a href="{dashboard["url"]}" target="_blank"><strong>{dashboard["name"]}</strong></a>'
+            if dashboard.get('description'):
+                html += f' - {dashboard["description"]}'
+            html += '</li>\n'
+
+        html += """    </ul>
+"""
+    else:
+        html += """
+    <p><em>No dashboard links were extracted from the source content.</em></p>
+"""
+
+    # Part 3: Graph types, troubleshooting, useful links (~125 lines)
+    html += """
+    <h3 id="section-4-4">Graph Types in Grafana</h3>
+
+    <p>Grafana supports several visualization types. Choose the right visualization for your data:</p>
+
+    <h4>Graph/Time Series</h4>
+    <p>Shows how a metric changes over time. Best for:</p>
+    <ul>
+        <li>Trends (is latency increasing?)</li>
+        <li>Patterns (traffic spikes at certain times?)</li>
+        <li>Comparisons (two services side by side)</li>
+    </ul>
+
+    <h4>Gauge</h4>
+    <p>Shows a single current value with min/max ranges. Best for:</p>
+    <ul>
+        <li>Current SLO status (showing if we're above/below target)</li>
+        <li>Capacity remaining</li>
+        <li>Health status at a glance</li>
+    </ul>
+
+    <h4>Stat Panel</h4>
+    <p>Shows a single large number with optional sparkline. Best for:</p>
+    <ul>
+        <li>Current error rate</li>
+        <li>Total requests in a period</li>
+        <li>Key metrics that changed recently</li>
+    </ul>
+
+    <h4>Heatmap</h4>
+    <p>Shows distribution of values across time. Best for:</p>
+    <ul>
+        <li>Latency distribution (where do most requests fall?)</li>
+        <li>Finding outliers</li>
+        <li>Identifying time-dependent patterns</li>
+    </ul>
+
+    <h4>Table</h4>
+    <p>Shows data in rows and columns. Best for:</p>
+    <ul>
+        <li>Listing top errors or slow operations</li>
+        <li>Service health status</li>
+        <li>Detailed metrics that don't need visualization</li>
+    </ul>
+
+    <h3 id="section-4-5">Troubleshooting Tips</h3>
+
+    <p><strong>Dashboard shows no data?</strong></p>
+    <ul>
+        <li>Check the time range - data might be outside the selected window</li>
+        <li>Verify the metric name exists in Prometheus</li>
+        <li>Check that labels (filters) match your data</li>
+        <li>Test the PromQL query directly in Prometheus</li>
+    </ul>
+
+    <p><strong>Alert firing when it shouldn't?</strong></p>
+    <ul>
+        <li>Check the alert condition - is it evaluating correctly?</li>
+        <li>Look at the metric values in Grafana - are they at threshold?</li>
+        <li>Check the <code>for:</code> duration - alert must be true for this long</li>
+        <li>Review recent changes to the alert definition</li>
+    </ul>
+
+    <p><strong>PromQL query errors?</strong></p>
+    <ul>
+        <li>Check for balanced parentheses and brackets</li>
+        <li>Verify metric and label names are spelled correctly (case-sensitive)</li>
+        <li>Use Prometheus console to test basic queries first</li>
+        <li>Start simple, then add complexity</li>
+    </ul>
+
+    <p><strong>Metrics missing or stale?</strong></p>
+    <ul>
+        <li>Check if the component generating the metric is running</li>
+        <li>Verify scrape jobs are configured for that service</li>
+        <li>Look for errors in Prometheus targets page</li>
+        <li>Check application logs for export errors</li>
+    </ul>
+
+    <h3 id="section-4-6">Useful Resources and Links</h3>
+
+    <ul>
+        <li><strong>Prometheus Documentation:</strong> <a href="https://prometheus.io/docs/" target="_blank">prometheus.io/docs</a> - Official docs for metrics, querying, and alerting</li>
+        <li><strong>PromQL Basics:</strong> <a href="https://prometheus.io/docs/prometheus/latest/querying/basics/" target="_blank">PromQL Query Language</a> - Learn PromQL syntax and operators</li>
+        <li><strong>Grafana Dashboards:</strong> <a href="https://grafana.com/docs/grafana/latest/dashboards/" target="_blank">Grafana Dashboard Guide</a> - How to create and modify dashboards</li>
+        <li><strong>Alerting Rules:</strong> <a href="https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/" target="_blank">Prometheus Alerting Rules</a> - Alert syntax and configuration</li>
+        <li><strong>SLO Best Practices:</strong> <a href="https://sre.google/books/" target="_blank">Google SRE Books</a> - Industry standard guidance on SLOs and observability</li>
+        <li><strong>o11y Repository:</strong> <a href="https://github.com/redhat-appstudio/o11y" target="_blank">redhat-appstudio/o11y</a> - Source of Konflux alerts and dashboards</li>
+    </ul>
+
+    <h3 id="section-4-7">Quick Reference: Common PromQL Functions</h3>
+
+    <p>These functions appear frequently in Konflux metrics:</p>
+
+    <ul>
+        <li><code>rate(metric[5m])</code> - Per-second change over 5 minutes (used for error rates)</li>
+        <li><code>avg_over_time(metric[1h])</code> - Average value over 1 hour window</li>
+        <li><code>increase(metric[1h])</code> - Total increase over 1 hour</li>
+        <li><code>histogram_quantile(0.95, metric)</code> - 95th percentile (latency SLOs)</li>
+        <li><code>sum(metric)</code> - Total across all labels</li>
+        <li><code>by(...)</code> - Group results by labels</li>
+        <li><code>without(...)</code> - Exclude labels from grouping</li>
+    </ul>
+
+    <div class="callout warning">
+        <div class="callout-title">⚠️ Pro Tip: Start Monitoring Simple</div>
+        <p>When adding new metrics, start with simple queries. Complex queries are harder to debug and often hide issues. Add complexity only when you know the basics work.</p>
+    </div>
+</section>
+"""
+
+    return html
+
+
 def generate_html(content_sections: Dict[str, str], toc_items: List[Dict]) -> str:
     """Generate the complete HTML document."""
 
