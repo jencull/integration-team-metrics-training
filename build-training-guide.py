@@ -1234,7 +1234,7 @@ def generate_html(content_sections: Dict[str, str], toc_items: List[Dict]) -> st
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Konflux Metrics: Modifying Alerts & Dashboards - Training Guide</title>
+    <title>Integration Team Metrics: Modifying Alerts & Dashboards - Training Guide</title>
     <style>{PRISM_CSS}</style>
     <style>{MAIN_CSS}</style>
 </head>
@@ -1246,7 +1246,7 @@ def generate_html(content_sections: Dict[str, str], toc_items: List[Dict]) -> st
 
     <main class="content">
         <header>
-            <h1>Konflux Metrics: Modifying Alerts & Dashboards</h1>
+            <h1>Integration Team Metrics: Modifying Alerts & Dashboards</h1>
             <p class="subtitle">A Practical Guide for Engineers</p>
             <p class="intro">This guide will help you understand how to modify existing metrics, update dashboards, and test changes in the Konflux observability infrastructure. Learn by doing - each section focuses on practical tasks with embedded concepts.</p>
         </header>
