@@ -1,6 +1,6 @@
 # Konflux Metrics Training Guide
 
-A comprehensive HTML training document for junior engineers learning to modify and test Konflux metrics, alerts, and dashboards.
+A comprehensive HTML training document for engineers learning to modify and test Konflux metrics, alerts, and dashboards.
 
 ## Files
 
