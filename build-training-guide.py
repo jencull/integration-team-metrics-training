@@ -22,6 +22,372 @@ Prism.languages.yaml={scalar:{pattern:/([-:]\\s*(?:![^\\s]+)?[ \\t]*[|>])[ \\t]*
 Prism.languages.bash={shebang:{pattern:/^#!\\s*\\/.*/,alias:"important"},comment:{pattern:/(^|[^"{\\\\$])#.*/,lookbehind:!0},string:[{pattern:/((?:^|[^<])<<\\s*)["']?(\\w+?)["']?\\s*\\r?\\n(?:[\\s\\S])*?\\r?\\n\\2/,lookbehind:!0,greedy:!0},{pattern:/(["'])(?:\\\\[\\s\\S]|(?!\\1)[^\\\\])*\\1/g,greedy:!0}],variable:[{pattern:/\\$(?:\\w+(?:_\\w+)*|{[^}]+})/},{pattern:/\\$\\([^)]+\\)/,inside:{variable:/^\\$\\(/,string:/^\\(|\\)$/}},{pattern:/`[^`]+`/,inside:{variable:/^`|`$/}}],function:{pattern:/(^|[\\s;|&])(?:alias|apropos|apt-get|aptitude|aspell|awk|basename|bash|bc|bg|builtin|bzip2|cal|cat|cd|cfdisk|chgrp|chmod|chown|chroot|chkconfig|cksum|clear|cmp|comm|command|cp|cron|crontab|csplit|cut|date|dc|dd|ddrescue|declare|df|diff|diff3|dig|dir|dircolors|dirname|dirs|dmesg|du|echo|egrep|eject|enable|env|ethtool|eval|exec|exit|expand|expect|export|expr|fdformat|fdisk|fg|fgrep|file|find|fmt|fold|format|free|fsck|ftp|function|fuser|gawk|getopts|git|grep|groupadd|groupdel|groupmod|groups|gzip|hash|head|help|hg|history|hostname|htop|iconv|id|ifconfig|ifdown|ifup|import|install|jobs|join|kill|killall|less|let|link|ln|local|locate|logname|logout|look|lpc|lpr|lprint|lprintd|lprintq|lprm|ls|lsof|make|man|mkdir|mkfifo|mkisofs|mknod|more|most|mount|mtools|mtr|mv|mmv|nano|netstat|nice|nl|nohup|notify-send|nslookup|open|op|passwd|paste|pathchk|ping|pkill|popd|pr|printcap|printenv|printf|ps|pushd|pv|pwd|quota|quotacheck|quotactl|ram|rar|rcp|read|readarray|readonly|reboot|rename|renice|remsync|rev|rm|rmdir|rsync|screen|scp|sdiff|sed|select|seq|service|sftp|shift|shopt|shutdown|sleep|slocate|sort|source|split|ssh|stat|strace|su|sudo|sum|suspend|sync|tail|tar|tee|test|time|timeout|times|touch|top|traceroute|trap|tr|tsort|tty|type|ulimit|umask|umount|unalias|uname|unexpand|uniq|units|unrar|unset|unshar|uptime|useradd|userdel|usermod|users|uuencode|uudecode|v|vdir|vi|vmstat|wait|watch|wc|wget|whereis|which|who|whoami|write|xargs|xdg-open|yes|zip)(?=$|[)\\s;|&])/,lookbehind:!0},keyword:{pattern:/(^|[\\s;|&])(?:if|then|else|elif|fi|for|while|in|case|esac|function|select|do|done|until)(?=$|[)\\s;|&])/,lookbehind:!0},boolean:{pattern:/(^|[\\s;|&])(?:true|false)(?=$|[)\\s;|&])/,lookbehind:!0},operator:/&&?|\\|\\|?|==?|!=?|<<<?|>>|<=?|>=?|=~/,punctuation:/[{}()[\\];]/};
 """
 
+# Main CSS styles
+MAIN_CSS = """
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+:root {
+    --bg-color: #ffffff;
+    --text-color: #333333;
+    --heading-color: #ee0000;
+    --code-bg: #f5f5f5;
+    --code-border: #e0e0e0;
+    --sidebar-bg: #f8f8f8;
+    --sidebar-active: #ee0000;
+    --link-color: #0066cc;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    line-height: 1.6;
+    color: var(--text-color);
+    background: var(--bg-color);
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    min-height: 100vh;
+}
+
+/* Sidebar Navigation */
+.sidebar {
+    background: var(--sidebar-bg);
+    padding: 2rem 1.5rem;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    border-right: 1px solid var(--code-border);
+}
+
+.sidebar h2 {
+    font-size: 1.2rem;
+    margin-bottom: 1rem;
+    color: var(--heading-color);
+}
+
+.sidebar nav ul {
+    list-style: none;
+}
+
+.sidebar nav li {
+    margin-bottom: 0.5rem;
+}
+
+.sidebar nav a {
+    color: var(--text-color);
+    text-decoration: none;
+    display: block;
+    padding: 0.5rem 0.75rem;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.sidebar nav a:hover {
+    background: rgba(238, 0, 0, 0.1);
+    color: var(--heading-color);
+}
+
+.sidebar nav a.active {
+    background: rgba(238, 0, 0, 0.1);
+    color: var(--heading-color);
+    border-left: 3px solid var(--sidebar-active);
+    padding-left: calc(0.75rem - 3px);
+}
+
+.sidebar nav ul ul {
+    margin-left: 1rem;
+    margin-top: 0.25rem;
+}
+
+.sidebar nav ul ul a {
+    font-size: 0.9rem;
+}
+
+/* Main Content */
+.content {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 3rem 2rem;
+}
+
+header {
+    margin-bottom: 3rem;
+    border-bottom: 3px solid var(--heading-color);
+    padding-bottom: 1.5rem;
+}
+
+h1 {
+    font-size: 2.5rem;
+    color: var(--heading-color);
+    margin-bottom: 0.5rem;
+}
+
+.subtitle {
+    font-size: 1.25rem;
+    color: #666;
+    font-weight: normal;
+}
+
+.intro {
+    margin-top: 1.5rem;
+    font-size: 1.1rem;
+    line-height: 1.8;
+}
+
+/* Sections */
+section {
+    margin-bottom: 4rem;
+}
+
+h2 {
+    font-size: 2rem;
+    color: var(--heading-color);
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+    padding-top: 1rem;
+}
+
+h3 {
+    font-size: 1.5rem;
+    color: var(--text-color);
+    margin-top: 1.5rem;
+    margin-bottom: 0.75rem;
+}
+
+h4 {
+    font-size: 1.25rem;
+    color: var(--text-color);
+    margin-top: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+p {
+    margin-bottom: 1rem;
+}
+
+/* Code Blocks */
+code {
+    font-family: Consolas, Monaco, 'Courier New', monospace;
+    font-size: 0.9em;
+}
+
+p code, li code {
+    background: var(--code-bg);
+    padding: 0.2em 0.4em;
+    border-radius: 3px;
+    border: 1px solid var(--code-border);
+}
+
+pre {
+    background: #2d2d2d;
+    padding: 1.5rem;
+    border-radius: 6px;
+    overflow-x: auto;
+    margin: 1.5rem 0;
+    position: relative;
+}
+
+pre code {
+    background: none;
+    color: #ccc;
+    padding: 0;
+    border: none;
+}
+
+.code-block {
+    position: relative;
+}
+
+.copy-button {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    background: rgba(255, 255, 255, 0.1);
+    color: #ccc;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 0.25rem 0.75rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.code-block:hover .copy-button {
+    opacity: 1;
+}
+
+.copy-button:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* Lists */
+ul, ol {
+    margin: 1rem 0 1rem 2rem;
+}
+
+li {
+    margin-bottom: 0.5rem;
+}
+
+/* Links */
+a {
+    color: var(--link-color);
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+a[target="_blank"]::after {
+    content: " ↗";
+    font-size: 0.8em;
+}
+
+/* Callout Boxes */
+.callout {
+    padding: 1rem 1.5rem;
+    margin: 1.5rem 0;
+    border-radius: 6px;
+    border-left: 4px solid;
+}
+
+.callout.info {
+    background: #e3f2fd;
+    border-color: #2196f3;
+}
+
+.callout.warning {
+    background: #fff8e1;
+    border-color: #ffc107;
+}
+
+.callout.danger {
+    background: #ffebee;
+    border-color: #f44336;
+}
+
+.callout-title {
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
+
+/* Back to Top Button */
+.back-to-top {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    background: var(--heading-color);
+    color: white;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.3s;
+    z-index: 100;
+}
+
+.back-to-top.visible {
+    opacity: 1;
+}
+
+.back-to-top:hover {
+    background: #cc0000;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    body {
+        grid-template-columns: 1fr;
+    }
+
+    .sidebar {
+        position: static;
+        height: auto;
+    }
+
+    .content {
+        padding: 2rem 1rem;
+    }
+}
+"""
+
+# JavaScript for interactivity
+MAIN_JS = """
+// Table of Contents active section highlighting
+const observerOptions = {
+    root: null,
+    rootMargin: '-20% 0px -70% 0px',
+    threshold: 0
+};
+
+const sections = document.querySelectorAll('section[id]');
+const navLinks = document.querySelectorAll('.sidebar nav a');
+
+const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+        if (entry.isIntersecting) {
+            navLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === '#' + entry.target.id) {
+                    link.classList.add('active');
+                }
+            });
+        }
+    });
+}, observerOptions);
+
+sections.forEach(section => observer.observe(section));
+
+// Copy button functionality
+document.querySelectorAll('.code-block').forEach(block => {
+    const button = block.querySelector('.copy-button');
+    const code = block.querySelector('code');
+
+    if (button && code) {
+        button.addEventListener('click', () => {
+            navigator.clipboard.writeText(code.textContent).then(() => {
+                button.textContent = 'Copied!';
+                setTimeout(() => {
+                    button.textContent = 'Copy';
+                }, 2000);
+            });
+        });
+    }
+});
+
+// Back to top button
+const backToTop = document.querySelector('.back-to-top');
+
+window.addEventListener('scroll', () => {
+    if (window.scrollY > 300) {
+        backToTop.classList.add('visible');
+    } else {
+        backToTop.classList.remove('visible');
+    }
+});
+
+backToTop.addEventListener('click', () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+});
+
+// Syntax highlighting
+if (typeof Prism !== 'undefined') {
+    Prism.highlightAll();
+}
+"""
+
 # Configuration
 VAULT_PATH = Path("/Users/jcullina/ObsidianVault/Metrics")
 OUTPUT_PATH = Path("/Users/jcullina/metrics-training-guide.html")
@@ -103,6 +469,63 @@ def process_obsidian_links(content: str) -> str:
 def extract_yaml_examples(content: str) -> List[str]:
     """Extract YAML code blocks."""
     return extract_code_blocks(content, 'yaml')
+
+
+def generate_html(content_sections: Dict[str, str], toc_items: List[Dict]) -> str:
+    """Generate the complete HTML document."""
+
+    # Build table of contents
+    toc_html = "<nav><ul>"
+    for item in toc_items:
+        toc_html += f'<li><a href="#{item["id"]}">{item["title"]}</a>'
+        if "children" in item and item["children"]:
+            toc_html += "<ul>"
+            for child in item["children"]:
+                toc_html += f'<li><a href="#{child["id"]}">{child["title"]}</a></li>'
+            toc_html += "</ul>"
+        toc_html += "</li>"
+    toc_html += "</ul></nav>"
+
+    # Build content sections
+    content_html = ""
+    for section_id, section_content in content_sections.items():
+        content_html += section_content
+
+    # Complete HTML document
+    html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Konflux Metrics: Modifying Alerts & Dashboards - Training Guide</title>
+    <style>{PRISM_CSS}</style>
+    <style>{MAIN_CSS}</style>
+</head>
+<body>
+    <aside class="sidebar">
+        <h2>Table of Contents</h2>
+        {toc_html}
+    </aside>
+
+    <main class="content">
+        <header>
+            <h1>Konflux Metrics: Modifying Alerts & Dashboards</h1>
+            <p class="subtitle">A Practical Guide for Junior Engineers</p>
+            <p class="intro">This guide will help you understand how to modify existing metrics, update dashboards, and test changes in the Konflux observability infrastructure. Learn by doing - each section focuses on practical tasks with embedded concepts.</p>
+        </header>
+
+        {content_html}
+    </main>
+
+    <button class="back-to-top" aria-label="Back to top">↑</button>
+
+    <script>{PRISM_JS}</script>
+    <script>{MAIN_JS}</script>
+</body>
+</html>
+"""
+
+    return html
 
 
 def load_source_content() -> Dict[str, str]:
