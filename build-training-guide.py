@@ -662,9 +662,8 @@ def build_section_2_updating_dashboards(source_content: Dict[str, str]) -> str:
     <ul>
         <li><strong>Source repositories</strong> - Where dashboard JSON lives:
             <ul>
-                <li><code>redhat-appstudio/o11y</code></li>
-                <li><code>integration-service/o11y</code></li>
-                <li>Service-specific repos</li>
+                <li><code>redhat-appstudio/o11y/dashboards/</code> - Integration Service dashboards live here (e.g., <code>grafana-dashboard-konflux-integration-service-slo.configmap.yaml</code>)</li>
+                <li>Service-specific repos with their own <code>dashboards/</code> directories</li>
             </ul>
         </li>
         <li><strong>Deployment configuration</strong> - References which commit to deploy:
@@ -702,7 +701,7 @@ def build_section_2_updating_dashboards(source_content: Dict[str, str]) -> str:
     <div class="code-block">
         <button class="copy-button">Copy</button>
         <pre><code class="language-bash"># Step 1: Get latest commit SHA from source repo
-cd /path/to/source/repo  # e.g., integration-service/o11y
+cd ~/repo/o11y  # redhat-appstudio/o11y repo
 git log -1 --format="%H"
 # Copy the SHA output
 
