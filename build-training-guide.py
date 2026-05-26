@@ -1296,13 +1296,16 @@ if __name__ == "__main__":
     content_sections = {}
 
     print("  Building Section 1: Modifying Alerts...")
-    content_sections['section1'] = build_section_1_modifying_alerts(source_content)
+    content_sections['section-1'] = build_section_1_modifying_alerts(source_content)
 
     print("  Building Section 2: Updating Dashboards...")
-    content_sections['section2'] = build_section_2_updating_dashboards(source_content)
+    content_sections['section-2'] = build_section_2_updating_dashboards(source_content)
 
     print("  Building Section 3: Testing Changes...")
-    content_sections['section3'] = build_section_3_testing_changes(source_content)
+    content_sections['section-3'] = build_section_3_testing_changes(source_content)
+
+    print("  Building Section 4: Reference Materials...")
+    content_sections['section-4'] = build_section_4_reference(source_content)
 
     # Table of contents structure
     toc_items = [
@@ -1339,11 +1342,28 @@ if __name__ == "__main__":
                 {"id": "section-3-6", "title": "References and Additional Resources"},
             ]
         },
+        {
+            "id": "section-4",
+            "title": "4. Reference Materials",
+            "children": [
+                {"id": "section-4-1", "title": "Understanding Observability & SLOs"},
+                {"id": "section-4-2", "title": "Service Level Objectives (SLOs)"},
+                {"id": "section-4-3", "title": "Dashboard Links"},
+                {"id": "section-4-4", "title": "Graph Types in Grafana"},
+                {"id": "section-4-5", "title": "Troubleshooting Tips"},
+                {"id": "section-4-6", "title": "Useful Resources and Links"},
+                {"id": "section-4-7", "title": "Quick Reference: Common PromQL Functions"},
+            ]
+        },
     ]
 
     print()
     print("Generating HTML...")
     html = generate_html(content_sections, toc_items)
+
+    # Create parent directories if they don't exist
+    OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    VAULT_COPY_PATH.parent.mkdir(parents=True, exist_ok=True)
 
     print(f"Writing output to: {OUTPUT_PATH}")
     with open(OUTPUT_PATH, 'w', encoding='utf-8') as f:
@@ -1353,6 +1373,10 @@ if __name__ == "__main__":
     with open(VAULT_COPY_PATH, 'w', encoding='utf-8') as f:
         f.write(html)
 
+    # Get file size in KB
+    output_file_size_kb = OUTPUT_PATH.stat().st_size / 1024
+
     print()
     print("✓ Build complete!")
-    print(f"Output file size: {len(html):,} bytes")
+    print(f"Output file: {OUTPUT_PATH.name}")
+    print(f"File size: {output_file_size_kb:.1f} KB")
