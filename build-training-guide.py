@@ -646,6 +646,134 @@ expr: |
     return html
 
 
+def build_section_2_updating_dashboards(source_content: Dict[str, str]) -> str:
+    """Build Section 2: Updating Grafana Dashboards."""
+
+    push_dash_content = source_content.get('push_dash', '')
+
+    html = """
+<section id="section-2">
+    <h2>2. Updating Grafana Dashboards</h2>
+
+    <p>Grafana dashboards visualize metrics and SLOs. You'll update dashboards to add new panels, fix queries, or change visualizations. Changes go through a two-step process: modify the source, then push to production.</p>
+
+    <h3 id="section-2-1">Where Dashboards Are Defined</h3>
+    <p>Dashboards have two locations:</p>
+    <ul>
+        <li><strong>Source repositories</strong> - Where dashboard JSON lives:
+            <ul>
+                <li><code>redhat-appstudio/o11y</code></li>
+                <li><code>integration-service/o11y</code></li>
+                <li>Service-specific repos</li>
+            </ul>
+        </li>
+        <li><strong>Deployment configuration</strong> - References which commit to deploy:
+            <ul>
+                <li><code>app-interface</code> (GitLab internal)</li>
+            </ul>
+        </li>
+    </ul>
+
+    <h3 id="section-2-2">Dashboard Development Workflow</h3>
+    <ol>
+        <li>Make changes to dashboard JSON in the source repository</li>
+        <li>Test changes (usually in staging Grafana or locally)</li>
+        <li>Commit and push changes to source repo</li>
+        <li>Update the commit SHA reference in <code>app-interface</code></li>
+        <li>Submit MR to app-interface</li>
+        <li>Changes automatically deploy to production on merge</li>
+    </ol>
+
+    <h3 id="section-2-3">Pushing Dashboard Changes to Production</h3>
+
+    <p><strong>Repository:</strong> <code>gitlab.cee.redhat.com/service/app-interface</code> (GitLab internal)</p>
+    <p><strong>File path:</strong> <code>data/services/stonesoup/cicd/saas-stonesoup-dashboards.yml</code></p>
+
+    <p><strong>Process:</strong></p>
+    <ol>
+        <li>Get the latest commit SHA from your dashboard changes in the source repo</li>
+        <li>Clone app-interface (if you haven't already)</li>
+        <li>Edit <code>saas-stonesoup-dashboards.yml</code></li>
+        <li>Find the dashboard entry and update the <code>ref:</code> field with the new SHA</li>
+        <li>Commit and create a merge request</li>
+        <li>Once merged, changes deploy automatically</li>
+    </ol>
+
+    <div class="code-block">
+        <button class="copy-button">Copy</button>
+        <pre><code class="language-bash"># Step 1: Get latest commit SHA from source repo
+cd /path/to/source/repo  # e.g., integration-service/o11y
+git log -1 --format="%H"
+# Copy the SHA output
+
+# Step 2: Clone app-interface
+git clone https://gitlab.cee.redhat.com/service/app-interface.git
+cd app-interface
+
+# Step 3: Edit dashboard config
+vim data/services/stonesoup/cicd/saas-stonesoup-dashboards.yml
+
+# Step 4: Update the ref field with your new SHA
+# Find the section for your dashboard and update:
+#   ref: &lt;old-sha&gt;
+# to:
+#   ref: &lt;new-sha&gt;
+
+# Step 5: Commit and push
+git add data/services/stonesoup/cicd/saas-stonesoup-dashboards.yml
+git commit -m "Update Integration Service dashboard to &lt;short-sha&gt;"
+git push origin HEAD:refs/for/master
+# This creates a merge request in GitLab</code></pre>
+    </div>
+
+    <h3 id="section-2-4">Example: Updating Integration Service SLO Dashboard</h3>
+
+    <p>Suppose you added a new panel to the Integration Service SLO dashboard in the <code>integration-service</code> repo.</p>
+
+    <p><strong>Step 1:</strong> Get the commit SHA</p>
+    <div class="code-block">
+        <button class="copy-button">Copy</button>
+        <pre><code class="language-bash">cd ~/integration-service
+git log -1 --format="%H"
+# Output: abc123def456...</code></pre>
+    </div>
+
+    <p><strong>Step 2:</strong> Update app-interface</p>
+    <p>In <code>data/services/stonesoup/cicd/saas-stonesoup-dashboards.yml</code>, find the section:</p>
+
+    <div class="code-block">
+        <button class="copy-button">Copy</button>
+        <pre><code class="language-yaml">- name: integration-service-slo
+  dashboard:
+    path: dashboards/integration-service-slo.json
+  resourceTemplates:
+  - name: integration-service-dashboards
+    url: https://github.com/redhat-appstudio/integration-service
+    path: /o11y/dashboards/
+    ref: old123sha456...  # ← Update this line
+  targets:
+  - namespace:
+      $ref: /services/grafana/namespaces/grafana-prod.yml</code></pre>
+    </div>
+
+    <p>Change to:</p>
+    <div class="code-block">
+        <button class="copy-button">Copy</button>
+        <pre><code class="language-yaml">    ref: abc123def456...  # ← New SHA</code></pre>
+    </div>
+
+    <div class="callout info">
+        <div class="callout-title">ℹ️ Additional Step (Sometimes)</div>
+        <p>If you're updating dashboards in the <code>infra-deployments</code> repo, you may also need to update:</p>
+        <p><code>components/monitoring/grafana/base/dashboards/integration/kustomization.yaml</code></p>
+        <p>This depends on how the dashboard is referenced. Check with your team if unsure.</p>
+    </div>
+</section>
+"""
+
+    return html
+
+
 def generate_html(content_sections: Dict[str, str], toc_items: List[Dict]) -> str:
     """Generate the complete HTML document."""
 
