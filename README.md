@@ -2,6 +2,22 @@
 
 A comprehensive HTML training document for engineers learning to modify and test Konflux metrics, alerts, and dashboards.
 
+## Quick Start
+
+**To view the training guide:**
+1. Clone this repository:
+   ```bash
+   git clone https://github.com/jencull/integration-team-metrics-training.git
+   cd integration-team-metrics-training
+   ```
+2. Open `metrics-training-guide.html` in your web browser:
+   - **macOS:** `open metrics-training-guide.html`
+   - **Linux:** `xdg-open metrics-training-guide.html`
+   - **Windows:** Double-click the file in File Explorer
+   - **Any OS:** Right-click → Open With → Your browser
+
+The guide works completely offline - no installation or dependencies required.
+
 ## Files
 
 - **`metrics-training-guide.html`** - The training document (open in browser)
