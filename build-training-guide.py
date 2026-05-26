@@ -1,0 +1,1382 @@
+#!/usr/bin/env python3
+"""
+Build the Konflux Metrics Training Guide HTML document.
+Extracts content from Obsidian vault and generates a self-contained HTML file.
+"""
+
+import os
+import re
+from pathlib import Path
+from typing import Dict, List, Tuple
+
+# Prism.js for syntax highlighting (minified, embedded inline)
+# Languages: YAML, Bash, PromQL
+# Theme: Tomorrow Night
+PRISM_CSS = """
+code[class*=language-],pre[class*=language-]{color:#ccc;background:0 0;font-family:Consolas,Monaco,'Andale Mono','Ubuntu Mono',monospace;font-size:1em;text-align:left;white-space:pre;word-spacing:normal;word-break:normal;word-wrap:normal;line-height:1.5;tab-size:4;hyphens:none}pre[class*=language-]{padding:1em;margin:.5em 0;overflow:auto}:not(pre)>code[class*=language-],pre[class*=language-]{background:#2d2d2d}:not(pre)>code[class*=language-]{padding:.1em;border-radius:.3em;white-space:normal}.token.comment,.token.block-comment,.token.prolog,.token.doctype,.token.cdata{color:#999}.token.punctuation{color:#ccc}.token.tag,.token.attr-name,.token.namespace,.token.deleted{color:#e2777a}.token.function-name{color:#6196cc}.token.boolean,.token.number,.token.function{color:#f08d49}.token.property,.token.class-name,.token.constant,.token.symbol{color:#f8c555}.token.selector,.token.important,.token.atrule,.token.keyword,.token.builtin{color:#cc99cd}.token.string,.token.char,.token.attr-value,.token.regex,.token.variable{color:#7ec699}.token.operator,.token.entity,.token.url{color:#67cdcc}.token.important,.token.bold{font-weight:700}.token.italic{font-style:italic}.token.entity{cursor:help}.token.inserted{color:green}
+"""
+
+PRISM_JS = """
+var _self="undefined"!=typeof window?window:"undefined"!=typeof WorkerGlobalScope&&self instanceof WorkerGlobalScope?self:{},Prism=function(u){var t=/(?:^|\\s)lang(?:uage)?-(\\w+)(?=\\s|$)/i,n=0,e={},M={manual:u.Prism&&u.Prism.manual,disableWorkerMessageHandler:u.Prism&&u.Prism.disableWorkerMessageHandler,util:{encode:function e(n){return n instanceof W?new W(n.type,e(n.content),n.alias):Array.isArray(n)?n.map(e):n.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/\\u00a0/g," ")},type:function(e){return Object.prototype.toString.call(e).slice(8,-1)},objId:function(e){return e.__id||Object.defineProperty(e,"__id",{value:++n}),e.__id},clone:function t(e,r){var a,n;switch(r=r||{},M.util.type(e)){case"Object":if(n=M.util.objId(e),r[n])return r[n];for(var i in a={},r[n]=a,e)e.hasOwnProperty(i)&&(a[i]=t(e[i],r));return a;case"Array":return n=M.util.objId(e),r[n]?r[n]:(a=[],r[n]=a,e.forEach(function(e,n){a[n]=t(e,r)}),a);default:return e}},getLanguage:function(e){for(;e;){var n=t.exec(e.className);if(n)return n[1].toLowerCase();e=e.parentElement}return"none"},setLanguage:function(e,n){e.className=e.className.replace(RegExp(t,"gi"),""),e.classList.add("language-"+n)},currentScript:function(){if("undefined"==typeof document)return null;if("currentScript"in document)return document.currentScript;try{throw new Error}catch(e){var n=(/at [^(\\r\\n]*\\((.*):[^:]+:[^:]+\\)$/i.exec(e.stack)||[])[1];if(n){var t=document.getElementsByTagName("script");for(var r in t)if(t[r].src==n)return t[r]}return null}},isActive:function(e,n,t){for(var r="no-"+n;e;){var a=e.classList;if(a.contains(n))return!0;if(a.contains(r))return!1;e=e.parentElement}return!!t}},languages:{plain:e,plaintext:e,text:e,txt:e,extend:function(e,n){var t=M.util.clone(M.languages[e]);for(var r in n)t[r]=n[r];return t},insertBefore:function(t,e,n,r){var a=(r=r||M.languages)[t],i={};for(var l in a)if(a.hasOwnProperty(l)){if(l==e)for(var o in n)n.hasOwnProperty(o)&&(i[o]=n[o]);n.hasOwnProperty(l)||(i[l]=a[l])}var s=r[t];return r[t]=i,M.languages.DFS(M.languages,function(e,n){n===s&&e!=t&&(this[e]=i)}),i},DFS:function e(n,t,r,a){a=a||{};var i=M.util.objId;for(var l in n)if(n.hasOwnProperty(l)){t.call(n,l,n[l],r||l);var o=n[l],s=M.util.type(o);"Object"!==s||a[i(o)]?"Array"!==s||a[i(o)]||(a[i(o)]=!0,e(o,t,l,a)):(a[i(o)]=!0,e(o,t,null,a))}}},plugins:{},highlightAll:function(e,n){M.highlightAllUnder(document,e,n)},highlightAllUnder:function(e,n,t){var r={callback:t,container:e,selector:'code[class*="language-"], [class*="language-"] code, code[class*="lang-"], [class*="lang-"] code'};M.hooks.run("before-highlightall",r),r.elements=Array.prototype.slice.apply(r.container.querySelectorAll(r.selector)),M.hooks.run("before-all-elements-highlight",r);for(var a,i=0;a=r.elements[i++];)M.highlightElement(a,!0===n,r.callback)},highlightElement:function(e,n,t){var r=M.util.getLanguage(e),a=M.languages[r];M.util.setLanguage(e,r);var i=e.parentElement;i&&"pre"===i.nodeName.toLowerCase()&&M.util.setLanguage(i,r);var l={element:e,language:r,grammar:a,code:e.textContent};function o(e){l.highlightedCode=e,M.hooks.run("before-insert",l),l.element.innerHTML=l.highlightedCode,M.hooks.run("after-highlight",l),M.hooks.run("complete",l),t&&t.call(l.element)}if(M.hooks.run("before-sanity-check",l),(i=l.element.parentElement)&&"pre"===i.nodeName.toLowerCase()&&!i.hasAttribute("tabindex")&&i.setAttribute("tabindex","0"),!l.code)return M.hooks.run("complete",l),void(t&&t.call(l.element));if(M.hooks.run("before-highlight",l),l.grammar)if(n&&u.Worker){var s=new Worker(M.filename);s.onmessage=function(e){o(e.data)},s.postMessage(JSON.stringify({language:l.language,code:l.code,immediateClose:!0}))}else o(M.highlight(l.code,l.grammar,l.language));else o(M.util.encode(l.code))},highlight:function(e,n,t){var r={code:e,grammar:n,language:t};if(M.hooks.run("before-tokenize",r),!r.grammar)throw new Error('The language "'+r.language+'" has no grammar.');return r.tokens=M.tokenize(r.code,r.grammar),M.hooks.run("after-tokenize",r),W.stringify(M.util.encode(r.tokens),r.language)},tokenize:function(e,n){var t=n.rest;if(t){for(var r in t)n[r]=t[r];delete n.rest}var a=new i;return I(a,a.head,e),function e(n,t,r,a,i,l){for(var o in r)if(r.hasOwnProperty(o)&&r[o]){var s=r[o];s=Array.isArray(s)?s:[s];for(var u=0;u<s.length;++u){if(l&&l.cause==o+","+u)return;var c=s[u],g=c.inside,f=!!c.lookbehind,h=!!c.greedy,d=c.alias;if(h&&!c.pattern.global){var p=c.pattern.toString().match(/[imsuy]*$/)[0];c.pattern=RegExp(c.pattern.source,p+"g")}for(var v=c.pattern||c,m=a.next,y=i;m!==t.tail&&!(l&&y>=l.reach);y+=m.value.length,m=m.next){var k=m.value;if(t.length>n.length)return;if(!(k instanceof W)){var x,b=1;if(h){if(!(x=z(v,y,n,f))||x.index>=n.length)break;var w=x.index,A=x.index+x[0].length,P=y;for(P+=m.value.length;P<=w;)m=m.next,P+=m.value.length;if(P-=m.value.length,y=P,m.value instanceof W)continue;for(var E=m;E!==t.tail&&(P<A||"string"==typeof E.value);E=E.next)b++,P+=E.value.length;b--,k=n.slice(y,P),x.index-=y}else if(!(x=z(v,0,k,f)))continue;var w=x.index,L=x[0],S=k.slice(0,w),O=k.slice(w+L.length),j=y+k.length;l&&j>l.reach&&(l.reach=j);var C=m.prev;S&&(C=I(t,C,S),y+=S.length),q(t,C,b);var N=new W(o,g?M.tokenize(L,g):L,d,L);if(m=I(t,C,N),O&&I(t,m,O),1<b){var _={cause:o+","+u,reach:j};e(n,t,r,m.prev,y,_),l&&_.reach>l.reach&&(l.reach=_.reach)}}}}}}(e,a,n,a.head,0),function(e){var n=[],t=e.head.next;for(;t!==e.tail;)n.push(t.value),t=t.next;return n}(a)},hooks:{all:{},add:function(e,n){var t=M.hooks.all;t[e]=t[e]||[],t[e].push(n)},run:function(e,n){var t=M.hooks.all[e];if(t&&t.length)for(var r,a=0;r=t[a++];)r(n)}},Token:W};function W(e,n,t,r){this.type=e,this.content=n,this.alias=t,this.length=0|(r||"").length}function z(e,n,t,r){e.lastIndex=n;var a=e.exec(t);if(a&&r&&a[1]){var i=a[1].length;a.index+=i,a[0]=a[0].slice(i)}return a}function i(){var e={value:null,prev:null,next:null},n={value:null,prev:e,next:null};e.next=n,this.head=e,this.tail=n,this.length=0}function I(e,n,t){var r=n.next,a={value:t,prev:n,next:r};return n.next=a,r.prev=a,e.length++,a}function q(e,n,t){for(var r=n.next,a=0;a<t&&r!==e.tail;a++)r=r.next;(n.next=r).prev=n,e.length-=a}if(u.Prism=M,W.stringify=function n(e,t){if("string"==typeof e)return e;if(Array.isArray(e)){var r="";return e.forEach(function(e){r+=n(e,t)}),r}var a={type:e.type,content:n(e.content,t),tag:"span",classes:["token",e.type],attributes:{},language:t},i=e.alias;i&&(Array.isArray(i)?Array.prototype.push.apply(a.classes,i):a.classes.push(i)),M.hooks.run("wrap",a);var l="";for(var o in a.attributes)l+=" "+o+'="'+(a.attributes[o]||"").replace(/"/g,"&quot;")+'"';return"<"+a.tag+' class="'+a.classes.join(" ")+'"'+l+">"+a.content+"</"+a.tag+">"},!u.document)return u.addEventListener&&(M.disableWorkerMessageHandler||u.addEventListener("message",function(e){var n=JSON.parse(e.data),t=n.language,r=n.code,a=n.immediateClose;u.postMessage(M.highlight(r,M.languages[t],t)),a&&u.close()},!1)),M;var r=M.util.currentScript();function a(){M.manual||M.highlightAll()}if(r&&(M.filename=r.src,r.hasAttribute("data-manual")&&(M.manual=!0)),!M.manual){var l=document.readyState;"loading"===l||"interactive"===l&&r&&r.defer?document.addEventListener("DOMContentLoaded",a):window.requestAnimationFrame?window.requestAnimationFrame(a):window.setTimeout(a,16)}return M}(_self);"undefined"!=typeof module&&module.exports&&(module.exports=Prism),"undefined"!=typeof global&&(global.Prism=Prism);
+Prism.languages.yaml={scalar:{pattern:/([-:]\\s*(?:![^\\s]+)?[ \\t]*[|>])[ \\t]*(?:((?:\\r?\\n|\\r)[ \\t]+)\\S[^\\r\\n]*(?:\\2[^\\r\\n]+)*)/,lookbehind:!0,alias:"string"},comment:/#.*/,key:{pattern:/(\s*(?:^|[:\\-,[{\\r\\n?])[ \\t]*(?:![^\\s]+)?[ \\t]*)[^\\r\\n{[\\]},#\\s]+?(?=\\s*:\\s)/,lookbehind:!0,alias:"atrule"},directive:{pattern:/(^[ \\t]*)%.+/m,lookbehind:!0,alias:"important"},datetime:{pattern:/([:\\-,[{]\\s*(?:![^\\s]+)?[ \\t]*)\\d{4}-\\d\\d?-\\d\\d?(?:[tT]|[ \\t]+)\\d\\d?:\\d{2}:\\d{2}(?:\\.\\d*)?[ \\t]*(?:Z|[-+]\\d\\d?(?::\\d{2})?)?(?=[ \\t]*(?:$|,|]|}))/m,lookbehind:!0,alias:"number"},boolean:{pattern:/([:\\-,[{]\\s*(?:![^\\s]+)?[ \\t]*)(?:true|false)[ \\t]*(?=$|,|]|})/im,lookbehind:!0,alias:"important"},null:{pattern:/([:\\-,[{]\\s*(?:![^\\s]+)?[ \\t]*)(?:null|~)[ \\t]*(?=$|,|]|})/im,lookbehind:!0,alias:"important"},string:{pattern:/([:\\-,[{]\\s*(?:![^\\s]+)?[ \\t]*)("|')(?:(?!\\2)[^\\\\\\r\\n]|\\\\.)*\\2(?=[ \\t]*(?:$|,|]|}))/m,lookbehind:!0,greedy:!0},number:{pattern:/([:\\-,[{]\\s*(?:![^\\s]+)?[ \\t]*)[+\\-]?(?:0x[\\da-f]+|0o[0-7]+|(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:e[+\\-]?\\d+)?|\\.inf|\\.nan)[ \\t]*(?=$|,|]|})/im,lookbehind:!0},tag:/![^\\s]+/,important:/[&*][\\w]+/,punctuation:/---|[:,[\\]{}\\-?|>?]|\\.\\.\\.}/;
+Prism.languages.bash={shebang:{pattern:/^#!\\s*\\/.*/,alias:"important"},comment:{pattern:/(^|[^"{\\\\$])#.*/,lookbehind:!0},string:[{pattern:/((?:^|[^<])<<\\s*)["']?(\\w+?)["']?\\s*\\r?\\n(?:[\\s\\S])*?\\r?\\n\\2/,lookbehind:!0,greedy:!0},{pattern:/(["'])(?:\\\\[\\s\\S]|(?!\\1)[^\\\\])*\\1/g,greedy:!0}],variable:[{pattern:/\\$(?:\\w+(?:_\\w+)*|{[^}]+})/},{pattern:/\\$\\([^)]+\\)/,inside:{variable:/^\\$\\(/,string:/^\\(|\\)$/}},{pattern:/`[^`]+`/,inside:{variable:/^`|`$/}}],function:{pattern:/(^|[\\s;|&])(?:alias|apropos|apt-get|aptitude|aspell|awk|basename|bash|bc|bg|builtin|bzip2|cal|cat|cd|cfdisk|chgrp|chmod|chown|chroot|chkconfig|cksum|clear|cmp|comm|command|cp|cron|crontab|csplit|cut|date|dc|dd|ddrescue|declare|df|diff|diff3|dig|dir|dircolors|dirname|dirs|dmesg|du|echo|egrep|eject|enable|env|ethtool|eval|exec|exit|expand|expect|export|expr|fdformat|fdisk|fg|fgrep|file|find|fmt|fold|format|free|fsck|ftp|function|fuser|gawk|getopts|git|grep|groupadd|groupdel|groupmod|groups|gzip|hash|head|help|hg|history|hostname|htop|iconv|id|ifconfig|ifdown|ifup|import|install|jobs|join|kill|killall|less|let|link|ln|local|locate|logname|logout|look|lpc|lpr|lprint|lprintd|lprintq|lprm|ls|lsof|make|man|mkdir|mkfifo|mkisofs|mknod|more|most|mount|mtools|mtr|mv|mmv|nano|netstat|nice|nl|nohup|notify-send|nslookup|open|op|passwd|paste|pathchk|ping|pkill|popd|pr|printcap|printenv|printf|ps|pushd|pv|pwd|quota|quotacheck|quotactl|ram|rar|rcp|read|readarray|readonly|reboot|rename|renice|remsync|rev|rm|rmdir|rsync|screen|scp|sdiff|sed|select|seq|service|sftp|shift|shopt|shutdown|sleep|slocate|sort|source|split|ssh|stat|strace|su|sudo|sum|suspend|sync|tail|tar|tee|test|time|timeout|times|touch|top|traceroute|trap|tr|tsort|tty|type|ulimit|umask|umount|unalias|uname|unexpand|uniq|units|unrar|unset|unshar|uptime|useradd|userdel|usermod|users|uuencode|uudecode|v|vdir|vi|vmstat|wait|watch|wc|wget|whereis|which|who|whoami|write|xargs|xdg-open|yes|zip)(?=$|[)\\s;|&])/,lookbehind:!0},keyword:{pattern:/(^|[\\s;|&])(?:if|then|else|elif|fi|for|while|in|case|esac|function|select|do|done|until)(?=$|[)\\s;|&])/,lookbehind:!0},boolean:{pattern:/(^|[\\s;|&])(?:true|false)(?=$|[)\\s;|&])/,lookbehind:!0},operator:/&&?|\\|\\|?|==?|!=?|<<<?|>>|<=?|>=?|=~/,punctuation:/[{}()[\\];]/};
+"""
+
+# Main CSS styles
+MAIN_CSS = """
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+:root {
+    --bg-color: #ffffff;
+    --text-color: #333333;
+    --heading-color: #ee0000;
+    --code-bg: #f5f5f5;
+    --code-border: #e0e0e0;
+    --sidebar-bg: #f8f8f8;
+    --sidebar-active: #ee0000;
+    --link-color: #0066cc;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    line-height: 1.6;
+    color: var(--text-color);
+    background: var(--bg-color);
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    min-height: 100vh;
+}
+
+/* Sidebar Navigation */
+.sidebar {
+    background: var(--sidebar-bg);
+    padding: 2rem 1.5rem;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    border-right: 1px solid var(--code-border);
+}
+
+.sidebar h2 {
+    font-size: 1.2rem;
+    margin-bottom: 1rem;
+    color: var(--heading-color);
+}
+
+.sidebar nav ul {
+    list-style: none;
+}
+
+.sidebar nav li {
+    margin-bottom: 0.5rem;
+}
+
+.sidebar nav a {
+    color: var(--text-color);
+    text-decoration: none;
+    display: block;
+    padding: 0.5rem 0.75rem;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.sidebar nav a:hover {
+    background: rgba(238, 0, 0, 0.1);
+    color: var(--heading-color);
+}
+
+.sidebar nav a.active {
+    background: rgba(238, 0, 0, 0.1);
+    color: var(--heading-color);
+    border-left: 3px solid var(--sidebar-active);
+    padding-left: calc(0.75rem - 3px);
+}
+
+.sidebar nav ul ul {
+    margin-left: 1rem;
+    margin-top: 0.25rem;
+}
+
+.sidebar nav ul ul a {
+    font-size: 0.9rem;
+}
+
+/* Main Content */
+.content {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 3rem 2rem;
+}
+
+header {
+    margin-bottom: 3rem;
+    border-bottom: 3px solid var(--heading-color);
+    padding-bottom: 1.5rem;
+}
+
+h1 {
+    font-size: 2.5rem;
+    color: var(--heading-color);
+    margin-bottom: 0.5rem;
+}
+
+.subtitle {
+    font-size: 1.25rem;
+    color: #666;
+    font-weight: normal;
+}
+
+.intro {
+    margin-top: 1.5rem;
+    font-size: 1.1rem;
+    line-height: 1.8;
+}
+
+/* Sections */
+section {
+    margin-bottom: 4rem;
+}
+
+h2 {
+    font-size: 2rem;
+    color: var(--heading-color);
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+    padding-top: 1rem;
+}
+
+h3 {
+    font-size: 1.5rem;
+    color: var(--text-color);
+    margin-top: 1.5rem;
+    margin-bottom: 0.75rem;
+}
+
+h4 {
+    font-size: 1.25rem;
+    color: var(--text-color);
+    margin-top: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+p {
+    margin-bottom: 1rem;
+}
+
+/* Code Blocks */
+code {
+    font-family: Consolas, Monaco, 'Courier New', monospace;
+    font-size: 0.9em;
+}
+
+p code, li code {
+    background: var(--code-bg);
+    padding: 0.2em 0.4em;
+    border-radius: 3px;
+    border: 1px solid var(--code-border);
+}
+
+pre {
+    background: #2d2d2d;
+    padding: 1.5rem;
+    border-radius: 6px;
+    overflow-x: auto;
+    margin: 1.5rem 0;
+    position: relative;
+}
+
+pre code {
+    background: none;
+    color: #ccc;
+    padding: 0;
+    border: none;
+}
+
+.code-block {
+    position: relative;
+}
+
+.copy-button {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    background: rgba(255, 255, 255, 0.1);
+    color: #ccc;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 0.25rem 0.75rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.code-block:hover .copy-button {
+    opacity: 1;
+}
+
+.copy-button:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* Lists */
+ul, ol {
+    margin: 1rem 0 1rem 2rem;
+}
+
+li {
+    margin-bottom: 0.5rem;
+}
+
+/* Links */
+a {
+    color: var(--link-color);
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+a[target="_blank"]::after {
+    content: " ↗";
+    font-size: 0.8em;
+}
+
+/* Callout Boxes */
+.callout {
+    padding: 1rem 1.5rem;
+    margin: 1.5rem 0;
+    border-radius: 6px;
+    border-left: 4px solid;
+}
+
+.callout.info {
+    background: #e3f2fd;
+    border-color: #2196f3;
+}
+
+.callout.warning {
+    background: #fff8e1;
+    border-color: #ffc107;
+}
+
+.callout.danger {
+    background: #ffebee;
+    border-color: #f44336;
+}
+
+.callout-title {
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
+
+/* Back to Top Button */
+.back-to-top {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    background: var(--heading-color);
+    color: white;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.3s;
+    z-index: 100;
+}
+
+.back-to-top.visible {
+    opacity: 1;
+}
+
+.back-to-top:hover {
+    background: #cc0000;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    body {
+        grid-template-columns: 1fr;
+    }
+
+    .sidebar {
+        position: static;
+        height: auto;
+    }
+
+    .content {
+        padding: 2rem 1rem;
+    }
+}
+"""
+
+# JavaScript for interactivity
+MAIN_JS = """
+// Table of Contents active section highlighting
+const observerOptions = {
+    root: null,
+    rootMargin: '-20% 0px -70% 0px',
+    threshold: 0
+};
+
+const sections = document.querySelectorAll('section[id]');
+const navLinks = document.querySelectorAll('.sidebar nav a');
+
+const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+        if (entry.isIntersecting) {
+            navLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === '#' + entry.target.id) {
+                    link.classList.add('active');
+                }
+            });
+        }
+    });
+}, observerOptions);
+
+sections.forEach(section => observer.observe(section));
+
+// Copy button functionality
+document.querySelectorAll('.code-block').forEach(block => {
+    const button = block.querySelector('.copy-button');
+    const code = block.querySelector('code');
+
+    if (button && code) {
+        button.addEventListener('click', () => {
+            navigator.clipboard.writeText(code.textContent).then(() => {
+                button.textContent = 'Copied!';
+                setTimeout(() => {
+                    button.textContent = 'Copy';
+                }, 2000);
+            });
+        });
+    }
+});
+
+// Back to top button
+const backToTop = document.querySelector('.back-to-top');
+
+window.addEventListener('scroll', () => {
+    if (window.scrollY > 300) {
+        backToTop.classList.add('visible');
+    } else {
+        backToTop.classList.remove('visible');
+    }
+});
+
+backToTop.addEventListener('click', () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+});
+
+// Syntax highlighting
+if (typeof Prism !== 'undefined') {
+    Prism.highlightAll();
+}
+"""
+
+# Configuration
+VAULT_PATH = Path("/Users/jcullina/ObsidianVault/Metrics")
+OUTPUT_PATH = Path("/Users/jcullina/metrics-training-guide.html")
+VAULT_COPY_PATH = Path("/Users/jcullina/ObsidianVault/Metrics/metrics-training-guide.html")
+
+# Source files to extract content from
+SOURCE_FILES = {
+    "testing": "testing metrics changes.md",
+    "severity": "Reducing or increasing severity or slo status.md",
+    "push_dash": "Push dash prod.md",
+    "dashboards": "Dashboard links.md",
+    "observability": "Observability explanation.md",
+    "prometheus": "Prometheus.md",
+    "graph_types": "Graph types.md",
+    "flapping": "Flapping alerts.md",
+    "slo_epic": "Availability SLO 2 epic.md",
+}
+
+
+def read_vault_file(filename: str) -> str:
+    """Read a file from the Obsidian vault."""
+    file_path = VAULT_PATH / filename
+    if not file_path.exists():
+        print(f"Warning: {filename} not found")
+        return ""
+
+    with open(file_path, 'r', encoding='utf-8') as f:
+        return f.read()
+
+
+def extract_code_blocks(content: str, language: str = None) -> List[str]:
+    """Extract code blocks from markdown content."""
+    pattern = r'```(\w*)\n(.*?)```'
+    matches = re.findall(pattern, content, re.DOTALL)
+
+    if language:
+        return [code for lang, code in matches if lang == language]
+    return [code for _, code in matches]
+
+
+def extract_links(content: str) -> List[Tuple[str, str]]:
+    """Extract markdown links from content. Returns list of (url, text) tuples."""
+    # Match [text](url) format
+    pattern = r'\[([^\]]+)\]\(([^)]+)\)'
+    return re.findall(pattern, content)
+
+
+def extract_dashboard_links(content: str) -> List[Dict[str, str]]:
+    """Extract dashboard links with descriptions from Dashboard links.md."""
+    dashboards = []
+    lines = content.split('\n')
+
+    for line in lines:
+        # Match format: - [Name](URL) or - [Name](URL) - Description
+        match = re.match(r'-\s+\[([^\]]+)\]\(([^)]+)\)(?:\s+-\s+(.+))?', line)
+        if match:
+            name, url, description = match.groups()
+            dashboards.append({
+                'name': name.strip(),
+                'url': url.strip(),
+                'description': description.strip() if description else ''
+            })
+
+    return dashboards
+
+
+def extract_commands(content: str) -> List[str]:
+    """Extract bash commands from markdown content."""
+    return extract_code_blocks(content, 'bash') + extract_code_blocks(content, '')
+
+
+def process_obsidian_links(content: str) -> str:
+    """Convert Obsidian wiki-links [[Page]] to plain text."""
+    # Remove [[]] wiki-links, keeping just the text
+    content = re.sub(r'\[\[([^\]]+)\]\]', r'\1', content)
+    return content
+
+
+def extract_yaml_examples(content: str) -> List[str]:
+    """Extract YAML code blocks."""
+    return extract_code_blocks(content, 'yaml')
+
+
+def build_section_1_modifying_alerts(source_content: Dict[str, str]) -> str:
+    """Build Section 1: Modifying Alerts in the o11y Repository."""
+
+    # Extract example from severity file
+    severity_content = source_content.get('severity', '')
+    yaml_examples = extract_yaml_examples(severity_content)
+    bash_commands = extract_commands(severity_content)
+
+    html = """
+<section id="section-1">
+    <h2>1. Modifying Alerts in the o11y Repository</h2>
+
+    <p>Alerts notify the team when something goes wrong in Konflux. As a junior engineer, you'll often need to modify existing alerts - changing their severity, updating thresholds, or adjusting when they fire. This section teaches you how to make these changes safely.</p>
+
+    <h3 id="section-1-1">What Alerts Are and Why We Modify Them</h3>
+    <p>Alerts are rules defined in YAML files that monitor metrics. When a metric crosses a threshold (e.g., availability drops below 99%), the alert fires and sends a notification. We modify alerts to:</p>
+    <ul>
+        <li>Adjust sensitivity (change thresholds to reduce false positives)</li>
+        <li>Change severity levels (downgrade from critical to warning if not paging-worthy)</li>
+        <li>Update SLO status (control whether the alert pages SRE or just notifies the team)</li>
+        <li>Fix bugs in PromQL expressions</li>
+    </ul>
+
+    <h3 id="section-1-2">File Locations</h3>
+    <p>Alerts live in the <code>redhat-appstudio/o11y</code> repository:</p>
+    <ul>
+        <li><code>rhobs/alerting/data_plane/prometheus.*_alerts.yaml</code> - Alert rules for the data plane</li>
+        <li><code>rhobs/recording/*.yaml</code> - Recording rules (pre-computed metrics used by alerts)</li>
+    </ul>
+
+    <div class="code-block">
+        <button class="copy-button">Copy</button>
+        <pre><code class="language-bash"># Clone the repo
+git clone https://github.com/redhat-appstudio/o11y.git
+
+# Navigate to alerts
+cd rhobs/alerting/data_plane/
+
+# List alert files
+ls -la prometheus.*_alerts.yaml</code></pre>
+    </div>
+
+    <h3 id="section-1-3">Understanding Alert Structure</h3>
+    <p>Here's the anatomy of an alert definition in YAML:</p>
+
+    <div class="code-block">
+        <button class="copy-button">Copy</button>
+        <pre><code class="language-yaml">- alert: IntegrationServiceAvailabilitySLOViolation
+  expr: |
+    (
+      avg_over_time(redhat_appstudio_integrationservice_global_github_app_available[24h]) * 100
+    ) &lt; 99
+  for: 10m
+  labels:
+    severity: warning
+    slo: "false"
+  annotations:
+    summary: "Integration Service GitHub App availability below SLO"
+    description: "Availability is {{ $value }}%, below the 99% threshold"
+    alert_routing_key: "integration-service"</code></pre>
+    </div>
+
+    <p><strong>Key Fields:</strong></p>
+    <ul>
+        <li><code>alert</code> - Unique alert name (must be descriptive)</li>
+        <li><code>expr</code> - PromQL expression that triggers the alert when true</li>
+        <li><code>for</code> - How long the condition must be true before firing (prevents flapping)</li>
+        <li><code>labels.severity</code> - <code>critical</code>, <code>warning</code>, or <code>info</code></li>
+        <li><code>labels.slo</code> - <code>"true"</code> pages SRE, <code>"false"</code> notifies team only</li>
+        <li><code>annotations</code> - Human-readable descriptions (support template variables like <code>{{ $value }}</code>)</li>
+        <li><code>alert_routing_key</code> - Where to route when <code>slo: "false"</code> (replaces <code>alert_team_handle</code>)</li>
+        <li><code>alert_team_handle</code> - SRE team handle when <code>slo: "true"</code></li>
+    </ul>
+
+    <h3 id="section-1-4">Common Modifications</h3>
+
+    <h4>Changing Severity Levels</h4>
+    <p>Severity controls urgency:</p>
+    <ul>
+        <li><strong>critical</strong> - Production outage, immediate response needed</li>
+        <li><strong>warning</strong> - Issue that needs attention but not immediate</li>
+        <li><strong>info</strong> - Informational, for awareness only</li>
+    </ul>
+
+    <p>When changing from <code>critical</code> to <code>warning</code>, you must also update the <code>slo</code> label and routing field:</p>
+
+    <div class="callout warning">
+        <div class="callout-title">⚠️ Important Gotcha</div>
+        <p>Changing severity from <code>critical</code> (SLO alert) to <code>warning</code> requires THREE changes:</p>
+        <ol>
+            <li>Set <code>severity: warning</code></li>
+            <li>Set <code>slo: "false"</code></li>
+            <li>Change <code>alert_team_handle</code> to <code>alert_routing_key</code></li>
+        </ol>
+        <p>Missing any of these will cause deployment failures or incorrect routing.</p>
+    </div>
+
+    <h4>Updating SLO Status</h4>
+    <p>The <code>slo</code> label controls whether an alert pages the SRE team on-call:</p>
+    <ul>
+        <li><code>slo: "true"</code> - Alert violates an SLO, pages SRE immediately</li>
+        <li><code>slo: "false"</code> - Alert is important but not SLO-breaking, routes to team only</li>
+    </ul>
+
+    <h4>Modifying Thresholds and PromQL Expressions</h4>
+    <p>Example: Changing availability threshold from 99% to 98%:</p>
+
+    <div class="code-block">
+        <button class="copy-button">Copy</button>
+        <pre><code class="language-yaml"># Before
+expr: |
+  (
+    avg_over_time(redhat_appstudio_integrationservice_global_github_app_available[24h]) * 100
+  ) &lt; 99
+
+# After
+expr: |
+  (
+    avg_over_time(redhat_appstudio_integrationservice_global_github_app_available[24h]) * 100
+  ) &lt; 98</code></pre>
+    </div>
+
+    <h3 id="section-1-5">Real-World Example</h3>
+    <p>Let's walk through a real modification: downgrading <code>IntegrationServiceAvailabilitySLOViolation</code> from critical (SLO) to warning.</p>
+
+    <p><strong>Before:</strong></p>
+    <div class="code-block">
+        <button class="copy-button">Copy</button>
+        <pre><code class="language-yaml">- alert: IntegrationServiceAvailabilitySLOViolation
+  expr: |
+    (
+      avg_over_time(redhat_appstudio_integrationservice_global_github_app_available[24h]) * 100
+    ) &lt; 99
+  for: 10m
+  labels:
+    severity: critical
+    slo: "true"
+  annotations:
+    summary: "Integration Service GitHub App availability below SLO"
+    description: "Availability is {{ $value }}%, below the 99% threshold"
+    alert_team_handle: "integration-service-sre"</code></pre>
+    </div>
+
+    <p><strong>After:</strong></p>
+    <div class="code-block">
+        <button class="copy-button">Copy</button>
+        <pre><code class="language-yaml">- alert: IntegrationServiceAvailabilitySLOViolation
+  expr: |
+    (
+      avg_over_time(redhat_appstudio_integrationservice_global_github_app_available[24h]) * 100
+    ) &lt; 99
+  for: 10m
+  labels:
+    severity: warning
+    slo: "false"
+  annotations:
+    summary: "Integration Service GitHub App availability below SLO"
+    description: "Availability is {{ $value }}%, below the 99% threshold"
+    alert_routing_key: "integration-service"</code></pre>
+    </div>
+
+    <p><strong>What Changed:</strong></p>
+    <ol>
+        <li><code>severity: critical</code> → <code>severity: warning</code></li>
+        <li><code>slo: "true"</code> → <code>slo: "false"</code></li>
+        <li><code>alert_team_handle: "integration-service-sre"</code> → <code>alert_routing_key: "integration-service"</code></li>
+    </ol>
+
+    <p><strong>Why:</strong> The team decided this alert doesn't warrant waking up SRE in the middle of the night. It's important but can wait until business hours.</p>
+</section>
+"""
+
+    return html
+
+
+def build_section_2_updating_dashboards(source_content: Dict[str, str]) -> str:
+    """Build Section 2: Updating Grafana Dashboards."""
+
+    push_dash_content = source_content.get('push_dash', '')
+
+    html = """
+<section id="section-2">
+    <h2>2. Updating Grafana Dashboards</h2>
+
+    <p>Grafana dashboards visualize metrics and SLOs. You'll update dashboards to add new panels, fix queries, or change visualizations. Changes go through a two-step process: modify the source, then push to production.</p>
+
+    <h3 id="section-2-1">Where Dashboards Are Defined</h3>
+    <p>Dashboards have two locations:</p>
+    <ul>
+        <li><strong>Source repositories</strong> - Where dashboard JSON lives:
+            <ul>
+                <li><code>redhat-appstudio/o11y</code></li>
+                <li><code>integration-service/o11y</code></li>
+                <li>Service-specific repos</li>
+            </ul>
+        </li>
+        <li><strong>Deployment configuration</strong> - References which commit to deploy:
+            <ul>
+                <li><code>app-interface</code> (GitLab internal)</li>
+            </ul>
+        </li>
+    </ul>
+
+    <h3 id="section-2-2">Dashboard Development Workflow</h3>
+    <ol>
+        <li>Make changes to dashboard JSON in the source repository</li>
+        <li>Test changes (usually in staging Grafana or locally)</li>
+        <li>Commit and push changes to source repo</li>
+        <li>Update the commit SHA reference in <code>app-interface</code></li>
+        <li>Submit MR to app-interface</li>
+        <li>Changes automatically deploy to production on merge</li>
+    </ol>
+
+    <h3 id="section-2-3">Pushing Dashboard Changes to Production</h3>
+
+    <p><strong>Repository:</strong> <code>gitlab.cee.redhat.com/service/app-interface</code> (GitLab internal)</p>
+    <p><strong>File path:</strong> <code>data/services/stonesoup/cicd/saas-stonesoup-dashboards.yml</code></p>
+
+    <p><strong>Process:</strong></p>
+    <ol>
+        <li>Get the latest commit SHA from your dashboard changes in the source repo</li>
+        <li>Clone app-interface (if you haven't already)</li>
+        <li>Edit <code>saas-stonesoup-dashboards.yml</code></li>
+        <li>Find the dashboard entry and update the <code>ref:</code> field with the new SHA</li>
+        <li>Commit and create a merge request</li>
+        <li>Once merged, changes deploy automatically</li>
+    </ol>
+
+    <div class="code-block">
+        <button class="copy-button">Copy</button>
+        <pre><code class="language-bash"># Step 1: Get latest commit SHA from source repo
+cd /path/to/source/repo  # e.g., integration-service/o11y
+git log -1 --format="%H"
+# Copy the SHA output
+
+# Step 2: Clone app-interface
+git clone https://gitlab.cee.redhat.com/service/app-interface.git
+cd app-interface
+
+# Step 3: Edit dashboard config
+vim data/services/stonesoup/cicd/saas-stonesoup-dashboards.yml
+
+# Step 4: Update the ref field with your new SHA
+# Find the section for your dashboard and update:
+#   ref: &lt;old-sha&gt;
+# to:
+#   ref: &lt;new-sha&gt;
+
+# Step 5: Commit and push
+git add data/services/stonesoup/cicd/saas-stonesoup-dashboards.yml
+git commit -m "Update Integration Service dashboard to &lt;short-sha&gt;"
+git push origin HEAD:refs/for/master
+# This creates a merge request in GitLab</code></pre>
+    </div>
+
+    <h3 id="section-2-4">Example: Updating Integration Service SLO Dashboard</h3>
+
+    <p>Suppose you added a new panel to the Integration Service SLO dashboard in the <code>integration-service</code> repo.</p>
+
+    <p><strong>Step 1:</strong> Get the commit SHA</p>
+    <div class="code-block">
+        <button class="copy-button">Copy</button>
+        <pre><code class="language-bash">cd ~/integration-service
+git log -1 --format="%H"
+# Output: abc123def456...</code></pre>
+    </div>
+
+    <p><strong>Step 2:</strong> Update app-interface</p>
+    <p>In <code>data/services/stonesoup/cicd/saas-stonesoup-dashboards.yml</code>, find the section:</p>
+
+    <div class="code-block">
+        <button class="copy-button">Copy</button>
+        <pre><code class="language-yaml">- name: integration-service-slo
+  dashboard:
+    path: dashboards/integration-service-slo.json
+  resourceTemplates:
+  - name: integration-service-dashboards
+    url: https://github.com/redhat-appstudio/integration-service
+    path: /o11y/dashboards/
+    ref: old123sha456...  # ← Update this line
+  targets:
+  - namespace:
+      $ref: /services/grafana/namespaces/grafana-prod.yml</code></pre>
+    </div>
+
+    <p>Change to:</p>
+    <div class="code-block">
+        <button class="copy-button">Copy</button>
+        <pre><code class="language-yaml">    ref: abc123def456...  # ← New SHA</code></pre>
+    </div>
+
+    <div class="callout info">
+        <div class="callout-title">ℹ️ Additional Step (Sometimes)</div>
+        <p>If you're updating dashboards in the <code>infra-deployments</code> repo, you may also need to update:</p>
+        <p><code>components/monitoring/grafana/base/dashboards/integration/kustomization.yaml</code></p>
+        <p>This depends on how the dashboard is referenced. Check with your team if unsure.</p>
+    </div>
+</section>
+"""
+
+    return html
+
+
+def build_section_3_testing_changes(source_content: Dict[str, str]) -> str:
+    """Build Section 3: Testing Changes."""
+
+    testing_content = source_content.get('testing', '')
+
+    html = """
+<section id="section-3">
+    <h2>3. Testing Changes</h2>
+
+    <p>Before your alerts or dashboards go to production, you need to test them. Testing validates that your PromQL expressions work correctly and that your configuration doesn't break existing functionality. This section covers how to run the Konflux test suite locally.</p>
+
+    <h3 id="section-3-1">Why Test Your Changes</h3>
+    <p>Testing is critical because:</p>
+    <ul>
+        <li><strong>PromQL syntax errors</strong> - A typo in your expression will cause the entire alert or dashboard to fail</li>
+        <li><strong>Logic bugs</strong> - Your expression might compile but return unexpected results</li>
+        <li><strong>Performance issues</strong> - Inefficient queries can overload Prometheus</li>
+        <li><strong>Breaking changes</strong> - You might accidentally remove a recording rule that other alerts depend on</li>
+        <li><strong>Catching issues before production</strong> - Tests prevent fire-fighting in production</li>
+    </ul>
+
+    <p>The Konflux observability infrastructure includes automated test suites that validate your changes before they go live. You can run these tests locally on your machine.</p>
+
+    <h3 id="section-3-2">Setting Up Podman</h3>
+
+    <p>Tests run in containers using Podman. If you don't have Podman installed, you'll need to set it up first.</p>
+
+    <h4>Install Podman (if needed)</h4>
+    <p>On macOS:</p>
+    <div class="code-block">
+        <button class="copy-button">Copy</button>
+        <pre><code class="language-bash">brew install podman</code></pre>
+    </div>
+
+    <p>On Linux (Fedora/RHEL):</p>
+    <div class="code-block">
+        <button class="copy-button">Copy</button>
+        <pre><code class="language-bash">sudo dnf install podman</code></pre>
+    </div>
+
+    <h4>Initialize and Start Podman Machine (macOS only)</h4>
+
+    <div class="callout warning">
+        <div class="callout-title">⚠️ macOS Required Setup</div>
+        <p>On macOS, Podman requires a virtual machine. If Podman Desktop is running, you can skip this step. Otherwise:</p>
+    </div>
+
+    <div class="code-block">
+        <button class="copy-button">Copy</button>
+        <pre><code class="language-bash"># Create the VM (only once, on first setup)
+podman machine init
+
+# Start the VM before running tests
+podman machine start</code></pre>
+    </div>
+
+    <p>You only need to run <code>podman machine init</code> once. After that, use <code>podman machine start</code> before each session.</p>
+
+    <h3 id="section-3-3">Running Tests Locally</h3>
+
+    <p>The test suite uses a container image that checks your PromQL syntax and validates alerting rules. There are separate tests for data plane alerts and recording rules.</p>
+
+    <h4>Test Data Plane Alerts</h4>
+    <p>Data plane alerts monitor core Konflux services:</p>
+
+    <div class="code-block">
+        <button class="copy-button">Copy</button>
+        <pre><code class="language-bash">cd /path/to/o11y  # Clone of redhat-appstudio/o11y
+
+podman run \\
+  -v "$(pwd):/work" \\
+  -w /work \\
+  quay.io/rhobs/obsctl-reloader-rules-checker:latest \\
+  -t rhtap \\
+  -d rhobs/alerting/data_plane \\
+  -y -p \\
+  --tests-dir test/promql/tests/data_plane</code></pre>
+    </div>
+
+    <h4>Test Recording Rules</h4>
+    <p>Recording rules pre-compute expensive metrics:</p>
+
+    <div class="code-block">
+        <button class="copy-button">Copy</button>
+        <pre><code class="language-bash">cd /path/to/o11y
+
+podman run \\
+  -v "$(pwd):/work" \\
+  -w /work \\
+  quay.io/rhobs/obsctl-reloader-rules-checker:latest \\
+  -t rhtap \\
+  -d rhobs/recording \\
+  -y -p \\
+  --tests-dir test/promql/tests/recording</code></pre>
+    </div>
+
+    <p>Replace <code>/path/to/o11y</code> with your local clone of <code>redhat-appstudio/o11y</code>.</p>
+
+    <div class="callout info">
+        <div class="callout-title">ℹ️ Container Image Details</div>
+        <p>The image <code>quay.io/rhobs/obsctl-reloader-rules-checker</code> is maintained by the RHOBS team. It contains validators for PromQL syntax, rule structure, and test execution.</p>
+    </div>
+
+    <h3 id="section-3-4">Understanding Test Output</h3>
+
+    <p>Successful test runs show output like:</p>
+
+    <div class="code-block">
+        <button class="copy-button">Copy</button>
+        <pre><code class="language-bash">✓ Validating prometheus rules...
+✓ All PromQL expressions are valid
+✓ Running test suite...
+✓ 47/47 tests passed
+
+Test Results:
+  Data Plane Alerts: PASS
+  Recording Rules: PASS
+
+Errors: 0
+Warnings: 0</code></pre>
+    </div>
+
+    <p><strong>Key indicators:</strong></p>
+    <ul>
+        <li><code>✓</code> checks pass - Your changes are valid</li>
+        <li><code>✗</code> checks fail - Fix the issues before committing</li>
+        <li><code>Errors: 0</code> - No syntax or logic errors</li>
+        <li><code>Warnings: 0</code> - No issues flagged by validators</li>
+    </ul>
+
+    <h3 id="section-3-5">Common Test Failures and Fixes</h3>
+
+    <h4>PromQL Syntax Errors</h4>
+    <p><strong>Error:</strong></p>
+    <div class="code-block">
+        <button class="copy-button">Copy</button>
+        <pre><code class="language-bash">ERROR: parse error at char 42: unexpected token ")"</code></pre>
+    </div>
+
+    <div class="callout danger">
+        <div class="callout-title">❌ Common Cause: Missing or Extra Parentheses</div>
+        <p>Check your PromQL expression for balanced parentheses. Example:</p>
+        <p><code># WRONG: Missing closing paren<br/>
+(avg_over_time(metric[5m]</code></p>
+        <p><code># CORRECT<br/>
+(avg_over_time(metric[5m]))</code></p>
+    </div>
+
+    <h4>Undefined Metrics</h4>
+    <p><strong>Error:</strong></p>
+    <div class="code-block">
+        <button class="copy-button">Copy</button>
+        <pre><code class="language-bash">ERROR: metric "undefined_metric_name" not found in test data</code></pre>
+    </div>
+
+    <div class="callout danger">
+        <div class="callout-title">❌ Common Cause: Typo in Metric Name</div>
+        <p>Double-check that your metric name matches exactly. Prometheus is case-sensitive:</p>
+        <p><code># WRONG<br/>
+redhat_appstudio_IntegrationService_available  (wrong capitalization)</code></p>
+        <p><code># CORRECT<br/>
+redhat_appstudio_integrationservice_available</code></p>
+    </div>
+
+    <h4>Missing Test File</h4>
+    <p><strong>Error:</strong></p>
+    <div class="code-block">
+        <button class="copy-button">Copy</button>
+        <pre><code class="language-bash">ERROR: test directory "test/promql/tests/data_plane" not found</code></pre>
+    </div>
+
+    <p><strong>Fix:</strong> Ensure you're running the command from the root of the repository. Check that <code>test/</code> directory exists:</p>
+
+    <div class="code-block">
+        <button class="copy-button">Copy</button>
+        <pre><code class="language-bash">cd /path/to/o11y
+ls -la test/promql/tests/</code></pre>
+    </div>
+
+    <h4>Container Image Not Available</h4>
+    <p><strong>Error:</strong></p>
+    <div class="code-block">
+        <button class="copy-button">Copy</button>
+        <pre><code class="language-bash">Error: image not found</code></pre>
+    </div>
+
+    <p><strong>Fix:</strong> Pull the image first:</p>
+
+    <div class="code-block">
+        <button class="copy-button">Copy</button>
+        <pre><code class="language-bash">podman pull quay.io/rhobs/obsctl-reloader-rules-checker:latest</code></pre>
+    </div>
+
+    <h3 id="section-3-6">References and Additional Resources</h3>
+
+    <ul>
+        <li><strong>o11y repository:</strong> <a href="https://github.com/redhat-appstudio/o11y" target="_blank">redhat-appstudio/o11y</a></li>
+        <li><strong>RHOBS Rules Checker:</strong> <a href="https://github.com/rhobs/obsctl-reloader-rules-checker" target="_blank">obsctl-reloader-rules-checker</a></li>
+        <li><strong>PromQL Documentation:</strong> <a href="https://prometheus.io/docs/prometheus/latest/querying/basics/" target="_blank">Prometheus Query Language</a></li>
+        <li><strong>Konflux Monitoring:</strong> <a href="https://github.com/redhat-appstudio" target="_blank">redhat-appstudio</a></li>
+    </ul>
+
+    <div class="callout info">
+        <div class="callout-title">ℹ️ Getting Help</div>
+        <p>If tests fail and you can't figure out why:</p>
+        <ul>
+            <li>Check the exact error message - usually points to the problem</li>
+            <li>Ask your team lead or an experienced teammate to review your PromQL</li>
+            <li>Look at similar existing rules for reference</li>
+            <li>Test small changes before large refactors</li>
+        </ul>
+    </div>
+</section>
+"""
+
+    return html
+
+
+def build_section_4_reference(source_content: Dict[str, str]) -> str:
+    """Build Section 4: Reference Materials - Observability, SLOs, Dashboards, and Tools."""
+
+    # Extract dashboard links dynamically
+    dashboards_content = source_content.get('dashboards', '')
+    dashboard_links = extract_dashboard_links(dashboards_content)
+
+    # Part 1: Observability & SLO content (static HTML, ~85 lines)
+    html = """
+<section id="section-4">
+    <h2>4. Reference Materials</h2>
+
+    <p>This section provides reference material for common tasks, including observability concepts, SLO definitions, dashboard links, graph types, and troubleshooting resources.</p>
+
+    <h3 id="section-4-1">Understanding Observability & SLOs</h3>
+
+    <p>Observability is the practice of understanding system behavior by examining its outputs. The three pillars of observability are:</p>
+
+    <h4>1. Metrics</h4>
+    <p>Quantitative measurements of system behavior. Examples:</p>
+    <ul>
+        <li><strong>Request latency</strong> - How long requests take to complete</li>
+        <li><strong>Error rate</strong> - Percentage of failed requests</li>
+        <li><strong>Throughput</strong> - Requests per second the system handles</li>
+        <li><strong>Resource utilization</strong> - CPU, memory, disk usage</li>
+    </ul>
+
+    <p>In Konflux, we use <strong>Prometheus</strong> to collect and store metrics. PromQL is the language we use to query these metrics.</p>
+
+    <h4>2. Logs</h4>
+    <p>Detailed event records from applications. Logs capture:</p>
+    <ul>
+        <li><strong>Errors and warnings</strong> - When something goes wrong</li>
+        <li><strong>Audit trails</strong> - Who did what and when</li>
+        <li><strong>Debug information</strong> - Details for troubleshooting</li>
+    </ul>
+
+    <h4>3. Traces</h4>
+    <p>End-to-end request journeys through distributed systems. Traces show:</p>
+    <ul>
+        <li><strong>Request path</strong> - Which services a request flows through</li>
+        <li><strong>Latency breakdown</strong> - Where time is spent</li>
+        <li><strong>Dependencies</strong> - How services interact</li>
+    </ul>
+
+    <h3 id="section-4-2">Service Level Objectives (SLOs)</h3>
+
+    <p>An SLO is a target for how well a service should perform. SLOs have three components:</p>
+
+    <h4>Service Level Indicator (SLI)</h4>
+    <p>A metric that measures what matters to users. Examples:</p>
+    <ul>
+        <li>Availability: Percentage of successful requests</li>
+        <li>Latency: Percentage of requests completing within acceptable time</li>
+        <li>Error rate: Percentage of requests that don't fail</li>
+    </ul>
+
+    <h4>Service Level Objective (SLO)</h4>
+    <p>The target for the SLI. Examples:</p>
+    <ul>
+        <li>"99% availability" - The SLI must stay above 99%</li>
+        <li>"95th percentile latency under 500ms" - 95% of requests complete within 500ms</li>
+        <li>"99.9% success rate" - Less than 0.1% errors</li>
+    </ul>
+
+    <h4>Service Level Agreement (SLA)</h4>
+    <p>A contractual commitment about the SLO. SLAs define what happens if we miss the SLO (refunds, credits, etc).</p>
+
+    <div class="callout info">
+        <div class="callout-title">ℹ️ Error Budgets</div>
+        <p>If your SLO is 99% availability, you have a 1% "error budget" per month. This is how much downtime you can have before violating the SLO. Once the budget is exhausted, you must focus on stability over new features.</p>
+    </div>
+
+    <h3 id="section-4-3">Dashboard Links</h3>
+
+    <p>Use these dashboards to monitor Konflux metrics and SLOs:</p>
+"""
+
+    # Part 2: Dashboard links (DYNAMIC - iterates through extracted links)
+    if dashboard_links:
+        html += """
+    <div class="callout info">
+        <div class="callout-title">ℹ️ Dashboard Access</div>
+        <p>Most dashboards require VPN and authentication. Contact your team lead for access if you don't have it.</p>
+    </div>
+
+    <ul>
+"""
+        for dashboard in dashboard_links:
+            html += f'        <li><a href="{dashboard["url"]}" target="_blank"><strong>{dashboard["name"]}</strong></a>'
+            if dashboard.get('description'):
+                html += f' - {dashboard["description"]}'
+            html += '</li>\n'
+
+        html += """    </ul>
+"""
+    else:
+        html += """
+    <p><em>No dashboard links were extracted from the source content.</em></p>
+"""
+
+    # Part 3: Graph types, troubleshooting, useful links (~125 lines)
+    html += """
+    <h3 id="section-4-4">Graph Types in Grafana</h3>
+
+    <p>Grafana supports several visualization types. Choose the right visualization for your data:</p>
+
+    <h4>Graph/Time Series</h4>
+    <p>Shows how a metric changes over time. Best for:</p>
+    <ul>
+        <li>Trends (is latency increasing?)</li>
+        <li>Patterns (traffic spikes at certain times?)</li>
+        <li>Comparisons (two services side by side)</li>
+    </ul>
+
+    <h4>Gauge</h4>
+    <p>Shows a single current value with min/max ranges. Best for:</p>
+    <ul>
+        <li>Current SLO status (showing if we're above/below target)</li>
+        <li>Capacity remaining</li>
+        <li>Health status at a glance</li>
+    </ul>
+
+    <h4>Stat Panel</h4>
+    <p>Shows a single large number with optional sparkline. Best for:</p>
+    <ul>
+        <li>Current error rate</li>
+        <li>Total requests in a period</li>
+        <li>Key metrics that changed recently</li>
+    </ul>
+
+    <h4>Heatmap</h4>
+    <p>Shows distribution of values across time. Best for:</p>
+    <ul>
+        <li>Latency distribution (where do most requests fall?)</li>
+        <li>Finding outliers</li>
+        <li>Identifying time-dependent patterns</li>
+    </ul>
+
+    <h4>Table</h4>
+    <p>Shows data in rows and columns. Best for:</p>
+    <ul>
+        <li>Listing top errors or slow operations</li>
+        <li>Service health status</li>
+        <li>Detailed metrics that don't need visualization</li>
+    </ul>
+
+    <h3 id="section-4-5">Troubleshooting Tips</h3>
+
+    <p><strong>Dashboard shows no data?</strong></p>
+    <ul>
+        <li>Check the time range - data might be outside the selected window</li>
+        <li>Verify the metric name exists in Prometheus</li>
+        <li>Check that labels (filters) match your data</li>
+        <li>Test the PromQL query directly in Prometheus</li>
+    </ul>
+
+    <p><strong>Alert firing when it shouldn't?</strong></p>
+    <ul>
+        <li>Check the alert condition - is it evaluating correctly?</li>
+        <li>Look at the metric values in Grafana - are they at threshold?</li>
+        <li>Check the <code>for:</code> duration - alert must be true for this long</li>
+        <li>Review recent changes to the alert definition</li>
+    </ul>
+
+    <p><strong>PromQL query errors?</strong></p>
+    <ul>
+        <li>Check for balanced parentheses and brackets</li>
+        <li>Verify metric and label names are spelled correctly (case-sensitive)</li>
+        <li>Use Prometheus console to test basic queries first</li>
+        <li>Start simple, then add complexity</li>
+    </ul>
+
+    <p><strong>Metrics missing or stale?</strong></p>
+    <ul>
+        <li>Check if the component generating the metric is running</li>
+        <li>Verify scrape jobs are configured for that service</li>
+        <li>Look for errors in Prometheus targets page</li>
+        <li>Check application logs for export errors</li>
+    </ul>
+
+    <h3 id="section-4-6">Useful Resources and Links</h3>
+
+    <ul>
+        <li><strong>Prometheus Documentation:</strong> <a href="https://prometheus.io/docs/" target="_blank">prometheus.io/docs</a> - Official docs for metrics, querying, and alerting</li>
+        <li><strong>PromQL Basics:</strong> <a href="https://prometheus.io/docs/prometheus/latest/querying/basics/" target="_blank">PromQL Query Language</a> - Learn PromQL syntax and operators</li>
+        <li><strong>Grafana Dashboards:</strong> <a href="https://grafana.com/docs/grafana/latest/dashboards/" target="_blank">Grafana Dashboard Guide</a> - How to create and modify dashboards</li>
+        <li><strong>Alerting Rules:</strong> <a href="https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/" target="_blank">Prometheus Alerting Rules</a> - Alert syntax and configuration</li>
+        <li><strong>SLO Best Practices:</strong> <a href="https://sre.google/books/" target="_blank">Google SRE Books</a> - Industry standard guidance on SLOs and observability</li>
+        <li><strong>o11y Repository:</strong> <a href="https://github.com/redhat-appstudio/o11y" target="_blank">redhat-appstudio/o11y</a> - Source of Konflux alerts and dashboards</li>
+    </ul>
+
+    <h3 id="section-4-7">Quick Reference: Common PromQL Functions</h3>
+
+    <p>These functions appear frequently in Konflux metrics:</p>
+
+    <ul>
+        <li><code>rate(metric[5m])</code> - Per-second change over 5 minutes (used for error rates)</li>
+        <li><code>avg_over_time(metric[1h])</code> - Average value over 1 hour window</li>
+        <li><code>increase(metric[1h])</code> - Total increase over 1 hour</li>
+        <li><code>histogram_quantile(0.95, metric)</code> - 95th percentile (latency SLOs)</li>
+        <li><code>sum(metric)</code> - Total across all labels</li>
+        <li><code>by(...)</code> - Group results by labels</li>
+        <li><code>without(...)</code> - Exclude labels from grouping</li>
+    </ul>
+
+    <div class="callout warning">
+        <div class="callout-title">⚠️ Pro Tip: Start Monitoring Simple</div>
+        <p>When adding new metrics, start with simple queries. Complex queries are harder to debug and often hide issues. Add complexity only when you know the basics work.</p>
+    </div>
+</section>
+"""
+
+    return html
+
+
+def generate_html(content_sections: Dict[str, str], toc_items: List[Dict]) -> str:
+    """Generate the complete HTML document."""
+
+    # Build table of contents
+    toc_html = "<nav><ul>"
+    for item in toc_items:
+        toc_html += f'<li><a href="#{item["id"]}">{item["title"]}</a>'
+        if "children" in item and item["children"]:
+            toc_html += "<ul>"
+            for child in item["children"]:
+                toc_html += f'<li><a href="#{child["id"]}">{child["title"]}</a></li>'
+            toc_html += "</ul>"
+        toc_html += "</li>"
+    toc_html += "</ul></nav>"
+
+    # Build content sections
+    content_html = ""
+    for section_id, section_content in content_sections.items():
+        content_html += section_content
+
+    # Complete HTML document
+    html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Konflux Metrics: Modifying Alerts & Dashboards - Training Guide</title>
+    <style>{PRISM_CSS}</style>
+    <style>{MAIN_CSS}</style>
+</head>
+<body>
+    <aside class="sidebar">
+        <h2>Table of Contents</h2>
+        {toc_html}
+    </aside>
+
+    <main class="content">
+        <header>
+            <h1>Konflux Metrics: Modifying Alerts & Dashboards</h1>
+            <p class="subtitle">A Practical Guide for Junior Engineers</p>
+            <p class="intro">This guide will help you understand how to modify existing metrics, update dashboards, and test changes in the Konflux observability infrastructure. Learn by doing - each section focuses on practical tasks with embedded concepts.</p>
+        </header>
+
+        {content_html}
+    </main>
+
+    <button class="back-to-top" aria-label="Back to top">↑</button>
+
+    <script>{PRISM_JS}</script>
+    <script>{MAIN_JS}</script>
+</body>
+</html>
+"""
+
+    return html
+
+
+def load_source_content() -> Dict[str, str]:
+    """Load all source files from vault."""
+    content = {}
+
+    for key, filename in SOURCE_FILES.items():
+        print(f"  Loading {filename}...")
+        content[key] = read_vault_file(filename)
+
+    return content
+
+
+if __name__ == "__main__":
+    print("Building Konflux Metrics Training Guide...")
+    print(f"Reading from: {VAULT_PATH}")
+    print(f"Output to: {OUTPUT_PATH}")
+    print()
+
+    # Load all source content
+    print("Loading source files...")
+    source_content = load_source_content()
+
+    print()
+    print("Content loaded successfully!")
+    print(f"Files processed: {len(source_content)}")
+
+    # Build sections
+    print()
+    print("Building sections...")
+    content_sections = {}
+
+    print("  Building Section 1: Modifying Alerts...")
+    content_sections['section-1'] = build_section_1_modifying_alerts(source_content)
+
+    print("  Building Section 2: Updating Dashboards...")
+    content_sections['section-2'] = build_section_2_updating_dashboards(source_content)
+
+    print("  Building Section 3: Testing Changes...")
+    content_sections['section-3'] = build_section_3_testing_changes(source_content)
+
+    print("  Building Section 4: Reference Materials...")
+    content_sections['section-4'] = build_section_4_reference(source_content)
+
+    # Table of contents structure
+    toc_items = [
+        {
+            "id": "section-1",
+            "title": "1. Modifying Alerts in the o11y Repository",
+            "children": [
+                {"id": "section-1-1", "title": "What Alerts Are and Why We Modify Them"},
+                {"id": "section-1-2", "title": "File Locations"},
+                {"id": "section-1-3", "title": "Understanding Alert Structure"},
+                {"id": "section-1-4", "title": "Common Modifications"},
+                {"id": "section-1-5", "title": "Real-World Example"},
+            ]
+        },
+        {
+            "id": "section-2",
+            "title": "2. Updating Grafana Dashboards",
+            "children": [
+                {"id": "section-2-1", "title": "Where Dashboards Are Defined"},
+                {"id": "section-2-2", "title": "Dashboard Development Workflow"},
+                {"id": "section-2-3", "title": "Pushing Dashboard Changes to Production"},
+                {"id": "section-2-4", "title": "Example: Updating Integration Service SLO Dashboard"},
+            ]
+        },
+        {
+            "id": "section-3",
+            "title": "3. Testing Changes",
+            "children": [
+                {"id": "section-3-1", "title": "Why Test Your Changes"},
+                {"id": "section-3-2", "title": "Setting Up Podman"},
+                {"id": "section-3-3", "title": "Running Tests Locally"},
+                {"id": "section-3-4", "title": "Understanding Test Output"},
+                {"id": "section-3-5", "title": "Common Test Failures and Fixes"},
+                {"id": "section-3-6", "title": "References and Additional Resources"},
+            ]
+        },
+        {
+            "id": "section-4",
+            "title": "4. Reference Materials",
+            "children": [
+                {"id": "section-4-1", "title": "Understanding Observability & SLOs"},
+                {"id": "section-4-2", "title": "Service Level Objectives (SLOs)"},
+                {"id": "section-4-3", "title": "Dashboard Links"},
+                {"id": "section-4-4", "title": "Graph Types in Grafana"},
+                {"id": "section-4-5", "title": "Troubleshooting Tips"},
+                {"id": "section-4-6", "title": "Useful Resources and Links"},
+                {"id": "section-4-7", "title": "Quick Reference: Common PromQL Functions"},
+            ]
+        },
+    ]
+
+    print()
+    print("Generating HTML...")
+    html = generate_html(content_sections, toc_items)
+
+    # Create parent directories if they don't exist
+    OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    VAULT_COPY_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+    print(f"Writing output to: {OUTPUT_PATH}")
+    with open(OUTPUT_PATH, 'w', encoding='utf-8') as f:
+        f.write(html)
+
+    print(f"Also copying to vault: {VAULT_COPY_PATH}")
+    with open(VAULT_COPY_PATH, 'w', encoding='utf-8') as f:
+        f.write(html)
+
+    # Get file size in KB
+    output_file_size_kb = OUTPUT_PATH.stat().st_size / 1024
+
+    print()
+    print("✓ Build complete!")
+    print(f"Output file: {OUTPUT_PATH.name}")
+    print(f"File size: {output_file_size_kb:.1f} KB")
