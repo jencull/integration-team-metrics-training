@@ -774,6 +774,224 @@ git log -1 --format="%H"
     return html
 
 
+def build_section_3_testing_changes(source_content: Dict[str, str]) -> str:
+    """Build Section 3: Testing Changes."""
+
+    testing_content = source_content.get('testing', '')
+
+    html = """
+<section id="section-3">
+    <h2>3. Testing Changes</h2>
+
+    <p>Before your alerts or dashboards go to production, you need to test them. Testing validates that your PromQL expressions work correctly and that your configuration doesn't break existing functionality. This section covers how to run the Konflux test suite locally.</p>
+
+    <h3 id="section-3-1">Why Test Your Changes</h3>
+    <p>Testing is critical because:</p>
+    <ul>
+        <li><strong>PromQL syntax errors</strong> - A typo in your expression will cause the entire alert or dashboard to fail</li>
+        <li><strong>Logic bugs</strong> - Your expression might compile but return unexpected results</li>
+        <li><strong>Performance issues</strong> - Inefficient queries can overload Prometheus</li>
+        <li><strong>Breaking changes</strong> - You might accidentally remove a recording rule that other alerts depend on</li>
+        <li><strong>Catching issues before production</strong> - Tests prevent fire-fighting in production</li>
+    </ul>
+
+    <p>The Konflux observability infrastructure includes automated test suites that validate your changes before they go live. You can run these tests locally on your machine.</p>
+
+    <h3 id="section-3-2">Setting Up Podman</h3>
+
+    <p>Tests run in containers using Podman. If you don't have Podman installed, you'll need to set it up first.</p>
+
+    <h4>Install Podman (if needed)</h4>
+    <p>On macOS:</p>
+    <div class="code-block">
+        <button class="copy-button">Copy</button>
+        <pre><code class="language-bash">brew install podman</code></pre>
+    </div>
+
+    <p>On Linux (Fedora/RHEL):</p>
+    <div class="code-block">
+        <button class="copy-button">Copy</button>
+        <pre><code class="language-bash">sudo dnf install podman</code></pre>
+    </div>
+
+    <h4>Initialize and Start Podman Machine (macOS only)</h4>
+
+    <div class="callout warning">
+        <div class="callout-title">⚠️ macOS Required Setup</div>
+        <p>On macOS, Podman requires a virtual machine. If Podman Desktop is running, you can skip this step. Otherwise:</p>
+    </div>
+
+    <div class="code-block">
+        <button class="copy-button">Copy</button>
+        <pre><code class="language-bash"># Create the VM (only once, on first setup)
+podman machine init
+
+# Start the VM before running tests
+podman machine start</code></pre>
+    </div>
+
+    <p>You only need to run <code>podman machine init</code> once. After that, use <code>podman machine start</code> before each session.</p>
+
+    <h3 id="section-3-3">Running Tests Locally</h3>
+
+    <p>The test suite uses a container image that checks your PromQL syntax and validates alerting rules. There are separate tests for data plane alerts and recording rules.</p>
+
+    <h4>Test Data Plane Alerts</h4>
+    <p>Data plane alerts monitor core Konflux services:</p>
+
+    <div class="code-block">
+        <button class="copy-button">Copy</button>
+        <pre><code class="language-bash">cd /path/to/o11y  # Clone of redhat-appstudio/o11y
+
+podman run \\
+  -v "$(pwd):/work" \\
+  -w /work \\
+  quay.io/rhobs/obsctl-reloader-rules-checker:latest \\
+  -t rhtap \\
+  -d rhobs/alerting/data_plane \\
+  -y -p \\
+  --tests-dir test/promql/tests/data_plane</code></pre>
+    </div>
+
+    <h4>Test Recording Rules</h4>
+    <p>Recording rules pre-compute expensive metrics:</p>
+
+    <div class="code-block">
+        <button class="copy-button">Copy</button>
+        <pre><code class="language-bash">cd /path/to/o11y
+
+podman run \\
+  -v "$(pwd):/work" \\
+  -w /work \\
+  quay.io/rhobs/obsctl-reloader-rules-checker:latest \\
+  -t rhtap \\
+  -d rhobs/recording \\
+  -y -p \\
+  --tests-dir test/promql/tests/recording</code></pre>
+    </div>
+
+    <p>Replace <code>/path/to/o11y</code> with your local clone of <code>redhat-appstudio/o11y</code>.</p>
+
+    <div class="callout info">
+        <div class="callout-title">ℹ️ Container Image Details</div>
+        <p>The image <code>quay.io/rhobs/obsctl-reloader-rules-checker</code> is maintained by the RHOBS team. It contains validators for PromQL syntax, rule structure, and test execution.</p>
+    </div>
+
+    <h3 id="section-3-4">Understanding Test Output</h3>
+
+    <p>Successful test runs show output like:</p>
+
+    <div class="code-block">
+        <button class="copy-button">Copy</button>
+        <pre><code class="language-bash">✓ Validating prometheus rules...
+✓ All PromQL expressions are valid
+✓ Running test suite...
+✓ 47/47 tests passed
+
+Test Results:
+  Data Plane Alerts: PASS
+  Recording Rules: PASS
+
+Errors: 0
+Warnings: 0</code></pre>
+    </div>
+
+    <p><strong>Key indicators:</strong></p>
+    <ul>
+        <li><code>✓</code> checks pass - Your changes are valid</li>
+        <li><code>✗</code> checks fail - Fix the issues before committing</li>
+        <li><code>Errors: 0</code> - No syntax or logic errors</li>
+        <li><code>Warnings: 0</code> - No issues flagged by validators</li>
+    </ul>
+
+    <h3 id="section-3-5">Common Test Failures and Fixes</h3>
+
+    <h4>PromQL Syntax Errors</h4>
+    <p><strong>Error:</strong></p>
+    <div class="code-block">
+        <button class="copy-button">Copy</button>
+        <pre><code class="language-bash">ERROR: parse error at char 42: unexpected token ")"</code></pre>
+    </div>
+
+    <div class="callout danger">
+        <div class="callout-title">❌ Common Cause: Missing or Extra Parentheses</div>
+        <p>Check your PromQL expression for balanced parentheses. Example:</p>
+        <p><code># WRONG: Missing closing paren<br/>
+(avg_over_time(metric[5m]</code></p>
+        <p><code># CORRECT<br/>
+(avg_over_time(metric[5m]))</code></p>
+    </div>
+
+    <h4>Undefined Metrics</h4>
+    <p><strong>Error:</strong></p>
+    <div class="code-block">
+        <button class="copy-button">Copy</button>
+        <pre><code class="language-bash">ERROR: metric "undefined_metric_name" not found in test data</code></pre>
+    </div>
+
+    <div class="callout danger">
+        <div class="callout-title">❌ Common Cause: Typo in Metric Name</div>
+        <p>Double-check that your metric name matches exactly. Prometheus is case-sensitive:</p>
+        <p><code># WRONG<br/>
+redhat_appstudio_IntegrationService_available  (wrong capitalization)</code></p>
+        <p><code># CORRECT<br/>
+redhat_appstudio_integrationservice_available</code></p>
+    </div>
+
+    <h4>Missing Test File</h4>
+    <p><strong>Error:</strong></p>
+    <div class="code-block">
+        <button class="copy-button">Copy</button>
+        <pre><code class="language-bash">ERROR: test directory "test/promql/tests/data_plane" not found</code></pre>
+    </div>
+
+    <p><strong>Fix:</strong> Ensure you're running the command from the root of the repository. Check that <code>test/</code> directory exists:</p>
+
+    <div class="code-block">
+        <button class="copy-button">Copy</button>
+        <pre><code class="language-bash">cd /path/to/o11y
+ls -la test/promql/tests/</code></pre>
+    </div>
+
+    <h4>Container Image Not Available</h4>
+    <p><strong>Error:</strong></p>
+    <div class="code-block">
+        <button class="copy-button">Copy</button>
+        <pre><code class="language-bash">Error: image not found</code></pre>
+    </div>
+
+    <p><strong>Fix:</strong> Pull the image first:</p>
+
+    <div class="code-block">
+        <button class="copy-button">Copy</button>
+        <pre><code class="language-bash">podman pull quay.io/rhobs/obsctl-reloader-rules-checker:latest</code></pre>
+    </div>
+
+    <h3 id="section-3-6">References and Additional Resources</h3>
+
+    <ul>
+        <li><strong>o11y repository:</strong> <a href="https://github.com/redhat-appstudio/o11y" target="_blank">redhat-appstudio/o11y</a></li>
+        <li><strong>RHOBS Rules Checker:</strong> <a href="https://github.com/rhobs/obsctl-reloader-rules-checker" target="_blank">obsctl-reloader-rules-checker</a></li>
+        <li><strong>PromQL Documentation:</strong> <a href="https://prometheus.io/docs/prometheus/latest/querying/basics/" target="_blank">Prometheus Query Language</a></li>
+        <li><strong>Konflux Monitoring:</strong> <a href="https://github.com/redhat-appstudio" target="_blank">redhat-appstudio</a></li>
+    </ul>
+
+    <div class="callout info">
+        <div class="callout-title">ℹ️ Getting Help</div>
+        <p>If tests fail and you can't figure out why:</p>
+        <ul>
+            <li>Check the exact error message - usually points to the problem</li>
+            <li>Ask your team lead or an experienced teammate to review your PromQL</li>
+            <li>Look at similar existing rules for reference</li>
+            <li>Test small changes before large refactors</li>
+        </ul>
+    </div>
+</section>
+"""
+
+    return html
+
+
 def generate_html(content_sections: Dict[str, str], toc_items: List[Dict]) -> str:
     """Generate the complete HTML document."""
 
@@ -855,3 +1073,70 @@ if __name__ == "__main__":
     print()
     print("Content loaded successfully!")
     print(f"Files processed: {len(source_content)}")
+
+    # Build sections
+    print()
+    print("Building sections...")
+    content_sections = {}
+
+    print("  Building Section 1: Modifying Alerts...")
+    content_sections['section1'] = build_section_1_modifying_alerts(source_content)
+
+    print("  Building Section 2: Updating Dashboards...")
+    content_sections['section2'] = build_section_2_updating_dashboards(source_content)
+
+    print("  Building Section 3: Testing Changes...")
+    content_sections['section3'] = build_section_3_testing_changes(source_content)
+
+    # Table of contents structure
+    toc_items = [
+        {
+            "id": "section-1",
+            "title": "1. Modifying Alerts in the o11y Repository",
+            "children": [
+                {"id": "section-1-1", "title": "What Alerts Are and Why We Modify Them"},
+                {"id": "section-1-2", "title": "File Locations"},
+                {"id": "section-1-3", "title": "Understanding Alert Structure"},
+                {"id": "section-1-4", "title": "Common Modifications"},
+                {"id": "section-1-5", "title": "Real-World Example"},
+            ]
+        },
+        {
+            "id": "section-2",
+            "title": "2. Updating Grafana Dashboards",
+            "children": [
+                {"id": "section-2-1", "title": "Where Dashboards Are Defined"},
+                {"id": "section-2-2", "title": "Dashboard Development Workflow"},
+                {"id": "section-2-3", "title": "Pushing Dashboard Changes to Production"},
+                {"id": "section-2-4", "title": "Example: Updating Integration Service SLO Dashboard"},
+            ]
+        },
+        {
+            "id": "section-3",
+            "title": "3. Testing Changes",
+            "children": [
+                {"id": "section-3-1", "title": "Why Test Your Changes"},
+                {"id": "section-3-2", "title": "Setting Up Podman"},
+                {"id": "section-3-3", "title": "Running Tests Locally"},
+                {"id": "section-3-4", "title": "Understanding Test Output"},
+                {"id": "section-3-5", "title": "Common Test Failures and Fixes"},
+                {"id": "section-3-6", "title": "References and Additional Resources"},
+            ]
+        },
+    ]
+
+    print()
+    print("Generating HTML...")
+    html = generate_html(content_sections, toc_items)
+
+    print(f"Writing output to: {OUTPUT_PATH}")
+    with open(OUTPUT_PATH, 'w', encoding='utf-8') as f:
+        f.write(html)
+
+    print(f"Also copying to vault: {VAULT_COPY_PATH}")
+    with open(VAULT_COPY_PATH, 'w', encoding='utf-8') as f:
+        f.write(html)
+
+    print()
+    print("✓ Build complete!")
+    print(f"Output file size: {len(html):,} bytes")
