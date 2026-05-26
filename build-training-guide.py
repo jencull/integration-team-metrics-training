@@ -471,6 +471,181 @@ def extract_yaml_examples(content: str) -> List[str]:
     return extract_code_blocks(content, 'yaml')
 
 
+def build_section_1_modifying_alerts(source_content: Dict[str, str]) -> str:
+    """Build Section 1: Modifying Alerts in the o11y Repository."""
+
+    # Extract example from severity file
+    severity_content = source_content.get('severity', '')
+    yaml_examples = extract_yaml_examples(severity_content)
+    bash_commands = extract_commands(severity_content)
+
+    html = """
+<section id="section-1">
+    <h2>1. Modifying Alerts in the o11y Repository</h2>
+
+    <p>Alerts notify the team when something goes wrong in Konflux. As a junior engineer, you'll often need to modify existing alerts - changing their severity, updating thresholds, or adjusting when they fire. This section teaches you how to make these changes safely.</p>
+
+    <h3 id="section-1-1">What Alerts Are and Why We Modify Them</h3>
+    <p>Alerts are rules defined in YAML files that monitor metrics. When a metric crosses a threshold (e.g., availability drops below 99%), the alert fires and sends a notification. We modify alerts to:</p>
+    <ul>
+        <li>Adjust sensitivity (change thresholds to reduce false positives)</li>
+        <li>Change severity levels (downgrade from critical to warning if not paging-worthy)</li>
+        <li>Update SLO status (control whether the alert pages SRE or just notifies the team)</li>
+        <li>Fix bugs in PromQL expressions</li>
+    </ul>
+
+    <h3 id="section-1-2">File Locations</h3>
+    <p>Alerts live in the <code>redhat-appstudio/o11y</code> repository:</p>
+    <ul>
+        <li><code>rhobs/alerting/data_plane/prometheus.*_alerts.yaml</code> - Alert rules for the data plane</li>
+        <li><code>rhobs/recording/*.yaml</code> - Recording rules (pre-computed metrics used by alerts)</li>
+    </ul>
+
+    <div class="code-block">
+        <button class="copy-button">Copy</button>
+        <pre><code class="language-bash"># Clone the repo
+git clone https://github.com/redhat-appstudio/o11y.git
+
+# Navigate to alerts
+cd rhobs/alerting/data_plane/
+
+# List alert files
+ls -la prometheus.*_alerts.yaml</code></pre>
+    </div>
+
+    <h3 id="section-1-3">Understanding Alert Structure</h3>
+    <p>Here's the anatomy of an alert definition in YAML:</p>
+
+    <div class="code-block">
+        <button class="copy-button">Copy</button>
+        <pre><code class="language-yaml">- alert: IntegrationServiceAvailabilitySLOViolation
+  expr: |
+    (
+      avg_over_time(redhat_appstudio_integrationservice_global_github_app_available[24h]) * 100
+    ) &lt; 99
+  for: 10m
+  labels:
+    severity: warning
+    slo: "false"
+  annotations:
+    summary: "Integration Service GitHub App availability below SLO"
+    description: "Availability is {{ $value }}%, below the 99% threshold"
+    alert_routing_key: "integration-service"</code></pre>
+    </div>
+
+    <p><strong>Key Fields:</strong></p>
+    <ul>
+        <li><code>alert</code> - Unique alert name (must be descriptive)</li>
+        <li><code>expr</code> - PromQL expression that triggers the alert when true</li>
+        <li><code>for</code> - How long the condition must be true before firing (prevents flapping)</li>
+        <li><code>labels.severity</code> - <code>critical</code>, <code>warning</code>, or <code>info</code></li>
+        <li><code>labels.slo</code> - <code>"true"</code> pages SRE, <code>"false"</code> notifies team only</li>
+        <li><code>annotations</code> - Human-readable descriptions (support template variables like <code>{{ $value }}</code>)</li>
+        <li><code>alert_routing_key</code> - Where to route when <code>slo: "false"</code> (replaces <code>alert_team_handle</code>)</li>
+        <li><code>alert_team_handle</code> - SRE team handle when <code>slo: "true"</code></li>
+    </ul>
+
+    <h3 id="section-1-4">Common Modifications</h3>
+
+    <h4>Changing Severity Levels</h4>
+    <p>Severity controls urgency:</p>
+    <ul>
+        <li><strong>critical</strong> - Production outage, immediate response needed</li>
+        <li><strong>warning</strong> - Issue that needs attention but not immediate</li>
+        <li><strong>info</strong> - Informational, for awareness only</li>
+    </ul>
+
+    <p>When changing from <code>critical</code> to <code>warning</code>, you must also update the <code>slo</code> label and routing field:</p>
+
+    <div class="callout warning">
+        <div class="callout-title">⚠️ Important Gotcha</div>
+        <p>Changing severity from <code>critical</code> (SLO alert) to <code>warning</code> requires THREE changes:</p>
+        <ol>
+            <li>Set <code>severity: warning</code></li>
+            <li>Set <code>slo: "false"</code></li>
+            <li>Change <code>alert_team_handle</code> to <code>alert_routing_key</code></li>
+        </ol>
+        <p>Missing any of these will cause deployment failures or incorrect routing.</p>
+    </div>
+
+    <h4>Updating SLO Status</h4>
+    <p>The <code>slo</code> label controls whether an alert pages the SRE team on-call:</p>
+    <ul>
+        <li><code>slo: "true"</code> - Alert violates an SLO, pages SRE immediately</li>
+        <li><code>slo: "false"</code> - Alert is important but not SLO-breaking, routes to team only</li>
+    </ul>
+
+    <h4>Modifying Thresholds and PromQL Expressions</h4>
+    <p>Example: Changing availability threshold from 99% to 98%:</p>
+
+    <div class="code-block">
+        <button class="copy-button">Copy</button>
+        <pre><code class="language-yaml"># Before
+expr: |
+  (
+    avg_over_time(redhat_appstudio_integrationservice_global_github_app_available[24h]) * 100
+  ) &lt; 99
+
+# After
+expr: |
+  (
+    avg_over_time(redhat_appstudio_integrationservice_global_github_app_available[24h]) * 100
+  ) &lt; 98</code></pre>
+    </div>
+
+    <h3 id="section-1-5">Real-World Example</h3>
+    <p>Let's walk through a real modification: downgrading <code>IntegrationServiceAvailabilitySLOViolation</code> from critical (SLO) to warning.</p>
+
+    <p><strong>Before:</strong></p>
+    <div class="code-block">
+        <button class="copy-button">Copy</button>
+        <pre><code class="language-yaml">- alert: IntegrationServiceAvailabilitySLOViolation
+  expr: |
+    (
+      avg_over_time(redhat_appstudio_integrationservice_global_github_app_available[24h]) * 100
+    ) &lt; 99
+  for: 10m
+  labels:
+    severity: critical
+    slo: "true"
+  annotations:
+    summary: "Integration Service GitHub App availability below SLO"
+    description: "Availability is {{ $value }}%, below the 99% threshold"
+    alert_team_handle: "integration-service-sre"</code></pre>
+    </div>
+
+    <p><strong>After:</strong></p>
+    <div class="code-block">
+        <button class="copy-button">Copy</button>
+        <pre><code class="language-yaml">- alert: IntegrationServiceAvailabilitySLOViolation
+  expr: |
+    (
+      avg_over_time(redhat_appstudio_integrationservice_global_github_app_available[24h]) * 100
+    ) &lt; 99
+  for: 10m
+  labels:
+    severity: warning
+    slo: "false"
+  annotations:
+    summary: "Integration Service GitHub App availability below SLO"
+    description: "Availability is {{ $value }}%, below the 99% threshold"
+    alert_routing_key: "integration-service"</code></pre>
+    </div>
+
+    <p><strong>What Changed:</strong></p>
+    <ol>
+        <li><code>severity: critical</code> → <code>severity: warning</code></li>
+        <li><code>slo: "true"</code> → <code>slo: "false"</code></li>
+        <li><code>alert_team_handle: "integration-service-sre"</code> → <code>alert_routing_key: "integration-service"</code></li>
+    </ol>
+
+    <p><strong>Why:</strong> The team decided this alert doesn't warrant waking up SRE in the middle of the night. It's important but can wait until business hours.</p>
+</section>
+"""
+
+    return html
+
+
 def generate_html(content_sections: Dict[str, str], toc_items: List[Dict]) -> str:
     """Generate the complete HTML document."""
 
