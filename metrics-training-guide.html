@@ -491,15 +491,19 @@ expr: |
     <h3 id="section-2-1">Where Dashboards Are Defined</h3>
     <p>Dashboards have two locations:</p>
     <ul>
-        <li><strong>Source repositories</strong> - Where dashboard JSON lives:
+        <li><strong>Source repository</strong> - Where dashboard definitions live:
             <ul>
-                <li><code>redhat-appstudio/o11y/dashboards/</code> - Integration Service dashboards live here (e.g., <code>grafana-dashboard-konflux-integration-service-slo.configmap.yaml</code>)</li>
-                <li>Service-specific repos with their own <code>dashboards/</code> directories</li>
+                <li><code>redhat-appstudio/o11y/dashboards/</code> - All Integration Service dashboards are here:
+                    <ul>
+                        <li><code>grafana-dashboard-konflux-integration-service-slo.configmap.yaml</code></li>
+                        <li><code>grafana-dashboard-konflux-integration-service-sli.configmap.yaml</code></li>
+                    </ul>
+                </li>
             </ul>
         </li>
-        <li><strong>Deployment configuration</strong> - References which commit to deploy:
+        <li><strong>Deployment configuration</strong> - References which commit SHA to deploy:
             <ul>
-                <li><code>app-interface</code> (GitLab internal)</li>
+                <li><code>app-interface/data/services/stonesoup/cicd/saas-stonesoup-dashboards.yml</code></li>
             </ul>
         </li>
     </ul>
@@ -558,45 +562,44 @@ git push origin HEAD:refs/for/master
 
     <h3 id="section-2-4">Example: Updating Integration Service SLO Dashboard</h3>
 
-    <p>Suppose you added a new panel to the Integration Service SLO dashboard in the <code>integration-service</code> repo.</p>
+    <p>Suppose you added a new panel to the Integration Service SLO dashboard (<code>grafana-dashboard-konflux-integration-service-slo.configmap.yaml</code>) in the <code>redhat-appstudio/o11y</code> repo.</p>
 
     <p><strong>Step 1:</strong> Get the commit SHA</p>
     <div class="code-block">
         <button class="copy-button">Copy</button>
-        <pre><code class="language-bash">cd ~/integration-service
+        <pre><code class="language-bash">cd ~/repo/o11y
 git log -1 --format="%H"
 # Output: abc123def456...</code></pre>
     </div>
 
     <p><strong>Step 2:</strong> Update app-interface</p>
-    <p>In <code>data/services/stonesoup/cicd/saas-stonesoup-dashboards.yml</code>, find the section:</p>
+    <p>In <code>data/services/stonesoup/cicd/saas-stonesoup-dashboards.yml</code>, find the production target section:</p>
 
     <div class="code-block">
         <button class="copy-button">Copy</button>
-        <pre><code class="language-yaml">- name: integration-service-slo
-  dashboard:
-    path: dashboards/integration-service-slo.json
-  resourceTemplates:
-  - name: integration-service-dashboards
-    url: https://github.com/redhat-appstudio/integration-service
-    path: /o11y/dashboards/
-    ref: old123sha456...  # ← Update this line
+        <pre><code class="language-yaml">resourceTemplates:
+- name: stonesoup-dashboards
+  url: https://github.com/redhat-appstudio/o11y
+  path: /dashboards
+  provider: directory
   targets:
   - namespace:
-      $ref: /services/grafana/namespaces/grafana-prod.yml</code></pre>
+      $ref: /services/observability/namespaces/app-sre-observability-stage-int.appsres09ue1.yml
+    ref: main
+  - namespace:
+      $ref: /services/observability/namespaces/app-sre-observability-production-int.appsrep09ue1.yml
+    ref: e6da55c7a3924f6fc32e2abc2fea43eed90abcf3  # ← Update this line</code></pre>
     </div>
 
-    <p>Change to:</p>
+    <p>Change the production ref to your new SHA:</p>
     <div class="code-block">
         <button class="copy-button">Copy</button>
         <pre><code class="language-yaml">    ref: abc123def456...  # ← New SHA</code></pre>
     </div>
 
     <div class="callout info">
-        <div class="callout-title">ℹ️ Additional Step (Sometimes)</div>
-        <p>If you're updating dashboards in the <code>infra-deployments</code> repo, you may also need to update:</p>
-        <p><code>components/monitoring/grafana/base/dashboards/integration/kustomization.yaml</code></p>
-        <p>This depends on how the dashboard is referenced. Check with your team if unsure.</p>
+        <div class="callout-title">ℹ️ Note</div>
+        <p>Integration Service dashboards are deployed via <code>app-interface</code> only. The <code>infra-deployments</code> repo has a legacy reference at <code>components/monitoring/grafana/base/dashboards/integration/kustomization.yaml</code> pointing to an old commit - this is not used for production deployments.</p>
     </div>
 </section>
 
@@ -661,7 +664,7 @@ podman machine start</code></pre>
 
     <div class="code-block">
         <button class="copy-button">Copy</button>
-        <pre><code class="language-bash">cd /path/to/o11y  # Clone of redhat-appstudio/o11y
+        <pre><code class="language-bash">cd ~/repo/o11y  # Clone of redhat-appstudio/o11y
 
 podman run \
   -v "$(pwd):/work" \
@@ -678,7 +681,7 @@ podman run \
 
     <div class="code-block">
         <button class="copy-button">Copy</button>
-        <pre><code class="language-bash">cd /path/to/o11y
+        <pre><code class="language-bash">cd ~/repo/o11y
 
 podman run \
   -v "$(pwd):/work" \
@@ -769,7 +772,7 @@ redhat_appstudio_integrationservice_available</code></p>
 
     <div class="code-block">
         <button class="copy-button">Copy</button>
-        <pre><code class="language-bash">cd /path/to/o11y
+        <pre><code class="language-bash">cd ~/repo/o11y
 ls -la test/promql/tests/</code></pre>
     </div>
 
