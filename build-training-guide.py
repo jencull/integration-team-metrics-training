@@ -56,7 +56,63 @@ def extract_links(content: str) -> List[Tuple[str, str]]:
     return re.findall(pattern, content)
 
 
+def extract_dashboard_links(content: str) -> List[Dict[str, str]]:
+    """Extract dashboard links with descriptions from Dashboard links.md."""
+    dashboards = []
+    lines = content.split('\n')
+
+    for line in lines:
+        # Match format: - [Name](URL) or - [Name](URL) - Description
+        match = re.match(r'-\s+\[([^\]]+)\]\(([^)]+)\)(?:\s+-\s+(.+))?', line)
+        if match:
+            name, url, description = match.groups()
+            dashboards.append({
+                'name': name.strip(),
+                'url': url.strip(),
+                'description': description.strip() if description else ''
+            })
+
+    return dashboards
+
+
+def extract_commands(content: str) -> List[str]:
+    """Extract bash commands from markdown content."""
+    return extract_code_blocks(content, 'bash') + extract_code_blocks(content, '')
+
+
+def process_obsidian_links(content: str) -> str:
+    """Convert Obsidian wiki-links [[Page]] to plain text."""
+    # Remove [[]] wiki-links, keeping just the text
+    content = re.sub(r'\[\[([^\]]+)\]\]', r'\1', content)
+    return content
+
+
+def extract_yaml_examples(content: str) -> List[str]:
+    """Extract YAML code blocks."""
+    return extract_code_blocks(content, 'yaml')
+
+
+def load_source_content() -> Dict[str, str]:
+    """Load all source files from vault."""
+    content = {}
+
+    for key, filename in SOURCE_FILES.items():
+        print(f"  Loading {filename}...")
+        content[key] = read_vault_file(filename)
+
+    return content
+
+
 if __name__ == "__main__":
     print("Building Konflux Metrics Training Guide...")
     print(f"Reading from: {VAULT_PATH}")
     print(f"Output to: {OUTPUT_PATH}")
+    print()
+
+    # Load all source content
+    print("Loading source files...")
+    source_content = load_source_content()
+
+    print()
+    print("Content loaded successfully!")
+    print(f"Files processed: {len(source_content)}")
