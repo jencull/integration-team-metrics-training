@@ -483,7 +483,7 @@ def build_section_1_modifying_alerts(source_content: Dict[str, str]) -> str:
 <section id="section-1">
     <h2>1. Modifying Alerts in the o11y Repository</h2>
 
-    <p>Alerts notify the team when something goes wrong in Konflux. As a junior engineer, you'll often need to modify existing alerts - changing their severity, updating thresholds, or adjusting when they fire. This section teaches you how to make these changes safely.</p>
+    <p>Alerts notify the team when something goes wrong in Konflux. As an engineer, you'll often need to modify existing alerts - changing their severity, updating thresholds, or adjusting when they fire. This section teaches you how to make these changes safely.</p>
 
     <h3 id="section-1-1">What Alerts Are and Why We Modify Them</h3>
     <p>Alerts are rules defined in YAML files that monitor metrics. When a metric crosses a threshold (e.g., availability drops below 99%), the alert fires and sends a notification. We modify alerts to:</p>
@@ -640,133 +640,586 @@ expr: |
     </ol>
 
     <p><strong>Why:</strong> The team decided this alert doesn't warrant waking up SRE in the middle of the night. It's important but can wait until business hours.</p>
+
+    <h3 id="section-1-6">Updating Alert and Recording Rule Tests</h3>
+
+    <p>When you modify alerts or recording rules, you may need to update their corresponding tests. Tests validate that your PromQL expressions work correctly and that alerts fire at the right thresholds.</p>
+
+    <h4>Test File Locations</h4>
+    <p>Tests live alongside the rules they validate:</p>
+    <ul>
+        <li><strong>Alert tests:</strong> <code>test/promql/tests/data_plane/</code> (~52 test files)</li>
+        <li><strong>Recording rule tests:</strong> <code>test/promql/tests/recording/</code> (~25 test files)</li>
+    </ul>
+
+    <h4>Naming Convention</h4>
+    <p>Test files follow a predictable naming pattern:</p>
+    <ul>
+        <li><strong>Alert file:</strong> <code>rhobs/alerting/data_plane/prometheus.integration_service_availability_alerts.yaml</code></li>
+        <li><strong>Test file:</strong> <code>test/promql/tests/data_plane/integration_service_availability_test.yaml</code></li>
+    </ul>
+
+    <h4>When to Update Tests</h4>
+    <p>You <strong>must update tests</strong> when you change:</p>
+    <ul>
+        <li><strong>Alert thresholds</strong> - If you change a percentage from 99% to 98%, update test expectations</li>
+        <li><strong>Time windows</strong> - If you change <code>for: 5m</code> to <code>for: 10m</code>, update test timing</li>
+        <li><strong>PromQL expressions</strong> - If the metric or calculation changes, update test inputs/outputs</li>
+        <li><strong>Label filters</strong> - If you add/remove label selectors, update test series labels</li>
+    </ul>
+
+    <div class="callout warning">
+        <div class="callout-title">⚠️ Tests Prevent Broken Alerts</div>
+        <p>If you change an alert threshold but don't update the test, the test will fail in CI. This catches mistakes before they reach production. Always update tests when you modify alert logic.</p>
+    </div>
+
+    <div class="callout info">
+        <div class="callout-title">ℹ️ Don't Forget the SOP</div>
+        <p>When you change alert thresholds (<code>for:</code> duration, percentages, etc.), you must also update the corresponding SOP to reflect the new values. If your alert now fires after 10 minutes instead of 5 minutes, the SOP runbook should document the correct threshold. See <strong>Section 2: Standard Operating Procedures</strong> for more details on updating SOPs.</p>
+    </div>
+
+    <h4>Alert Test Structure</h4>
+    <p>Alert tests simulate time-series data and verify that alerts fire (or don't fire) at the correct thresholds. Here's an example structure:</p>
+
+    <div class="code-block">
+        <button class="copy-button">Copy</button>
+        <pre><code class="language-yaml">evaluation_interval: 1m
+
+rule_files:
+  - prometheus.integration_service_availability_alerts.yaml
+
+tests:
+  # Test 1: Downtime exceeds threshold - alert SHOULD fire
+  - interval: 1m
+    input_series:
+      - series: 'konflux_up{service="integration-service", check="replicas-available"}'
+        values: '1x1434 0x6'  # 6 minutes down
+    alert_rule_test:
+      - eval_time: 1440m
+        alertname: IntegrationServiceAvailabilitySLOViolation
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              slo: "true"
+
+  # Test 2: Downtime below threshold - alert should NOT fire
+  - interval: 1m
+    input_series:
+      - series: 'konflux_up{service="integration-service", check="replicas-available"}'
+        values: '1x1436 0x4'  # Only 4 minutes down
+    alert_rule_test:
+      - eval_time: 1440m
+        alertname: IntegrationServiceAvailabilitySLOViolation
+        exp_alerts: []  # No alert expected</code></pre>
+    </div>
+
+    <p><strong>Key points:</strong></p>
+    <ul>
+        <li><code>input_series</code> - Simulates metric values over time (<code>1x1434</code> = value 1 for 1434 minutes)</li>
+        <li><code>eval_time</code> - When to check if the alert fired</li>
+        <li><code>exp_alerts</code> - Expected alerts at evaluation time (empty array = no alert)</li>
+        <li>Tests validate boundary conditions (just over and just under threshold)</li>
+    </ul>
+
+    <h4>Recording Rule Test Structure</h4>
+    <p>Recording rule tests verify that PromQL expressions produce the expected output metrics:</p>
+
+    <div class="code-block">
+        <button class="copy-button">Copy</button>
+        <pre><code class="language-yaml">evaluation_interval: 1m
+
+rule_files:
+  - integration_service_availability_recording_rules.yaml
+
+tests:
+  - interval: 1m
+    input_series:
+      # Service is available (1 replica spec, 1 replica available)
+      - series: 'kube_deployment_spec_replicas{namespace="integration-service", deployment="my-service"}'
+        values: '1 1 1 1 1'
+      - series: 'kube_deployment_status_replicas_available{namespace="integration-service", deployment="my-service"}'
+        values: '1 1 1 1 1'
+
+    promql_expr_test:
+      - expr: konflux_up
+        eval_time: 5m
+        exp_samples:
+          - labels: 'konflux_up{service="my-service", check="replicas-available"}'
+            value: 1  # Expect value 1 (available)</code></pre>
+    </div>
+
+    <p><strong>Key points:</strong></p>
+    <ul>
+        <li><code>promql_expr_test</code> - Tests the output of the recording rule expression</li>
+        <li><code>exp_samples</code> - Expected metric values with their labels</li>
+        <li>Tests verify the PromQL calculation produces correct results</li>
+    </ul>
+
+    <div class="callout info">
+        <div class="callout-title">ℹ️ Not All Alerts Have Recording Rules</div>
+        <p>Recording rules are used to pre-compute expensive or complex queries, reducing the computational cost when alerts evaluate. We typically use recording rules for:</p>
+        <ul>
+            <li><strong>Availability metrics</strong> - Like <code>konflux_up</code> and <code>image-rbac-proxy</code> availability calculations</li>
+            <li><strong>Complex aggregations</strong> - Queries that would be expensive to run every time an alert evaluates</li>
+        </ul>
+        <p>However, <strong>not all SLO alerts need recording rules</strong>. Many alerts query metrics directly if the query is simple enough. The decision depends on computational cost and query complexity. If you're modifying an alert that doesn't have a corresponding recording rule, you only need to update the alert test - there's no recording rule test to update.</p>
+    </div>
+
+    <h4>Example: Updating Tests After Changing Alert Threshold</h4>
+
+    <p>Let's say you change an alert's <code>for:</code> duration from 5 minutes to 10 minutes:</p>
+
+    <p><strong>Step 1: Update the alert</strong></p>
+    <div class="code-block">
+        <button class="copy-button">Copy</button>
+        <pre><code class="language-yaml"># Before
+for: 5m
+
+# After
+for: 10m</code></pre>
+    </div>
+
+    <p><strong>Step 2: Update the test</strong></p>
+    <p>You need to adjust test scenarios to match the new threshold:</p>
+
+    <div class="code-block">
+        <button class="copy-button">Copy</button>
+        <pre><code class="language-yaml"># OLD TEST: 6 minutes down triggers alert (threshold was 5m)
+values: '1x1434 0x6'  # 6 minutes down - SHOULD fire
+
+# NEW TEST: 11 minutes down triggers alert (threshold is now 10m)
+values: '1x1428 0x12'  # 12 minutes down - SHOULD fire
+
+# Also update the "just under threshold" test:
+# OLD: 4 minutes should NOT fire
+values: '1x1436 0x4'
+
+# NEW: 9 minutes should NOT fire
+values: '1x1431 0x9'</code></pre>
+    </div>
+
+    <p><strong>Step 3: Run tests locally</strong></p>
+    <p>After updating, run the test suite (see Section 4: Testing Changes) to verify your changes work correctly.</p>
+
+    <div class="callout info">
+        <div class="callout-title">ℹ️ Test File Reference</div>
+        <p>Each test file references its corresponding alert or recording rule file using the <code>rule_files:</code> field. This tells the test runner which YAML file to load for validation.</p>
+    </div>
 </section>
 """
 
     return html
 
 
-def build_section_2_updating_dashboards(source_content: Dict[str, str]) -> str:
-    """Build Section 2: Updating Grafana Dashboards."""
-
-    push_dash_content = source_content.get('push_dash', '')
+def build_section_2_sops(source_content: Dict[str, str]) -> str:
+    """Build Section 2: Standard Operating Procedures (SOPs)."""
 
     html = """
 <section id="section-2">
-    <h2>2. Updating Grafana Dashboards</h2>
+    <h2>2. Standard Operating Procedures (SOPs)</h2>
 
-    <p>Grafana dashboards visualize metrics and SLOs. You'll update dashboards to add new panels, fix queries, or change visualizations. Changes go through a two-step process: modify the source, then push to production.</p>
+    <p>Standard Operating Procedures (SOPs) are runbooks that guide the team through responding to alerts and incidents. When an alert fires, the SOP provides step-by-step instructions for diagnosing and resolving the issue. This section explains what SOPs are, where to find them, and how they connect to alerts.</p>
 
-    <h3 id="section-2-1">Where Dashboards Are Defined</h3>
+    <h3 id="section-2-1">What Are SOPs?</h3>
+    <p>An SOP (Standard Operating Procedure) is a documented procedure that describes how to respond to a specific situation. In the context of Konflux metrics and alerts:</p>
+    <ul>
+        <li><strong>SOPs provide actionable steps</strong> - They tell you exactly what to do when an alert fires</li>
+        <li><strong>SOPs reduce response time</strong> - Clear instructions mean faster resolution</li>
+        <li><strong>SOPs enable self-service</strong> - SREs can often resolve issues without waiting for the dev team</li>
+        <li><strong>SOPs ensure consistency</strong> - Everyone follows the same procedure</li>
+    </ul>
+
+    <h3 id="section-2-2">Two Categories of SOPs</h3>
+
+    <p>SOPs are organized into two main categories based on who uses them:</p>
+
+    <h4>SRE SOPs (SLO Alerts)</h4>
+    <p>Located in: <code>sop/integration-service/SRE/</code></p>
+    <p>These SOPs are used by SRE (Site Reliability Engineering) when critical alerts fire. Characteristics:</p>
+    <ul>
+        <li><strong>Linked to SLO alerts</strong> - Triggered when <code>slo: "true"</code> alerts fire</li>
+        <li><strong>Must have actionable steps</strong> - SRE must be able to diagnose and ideally resolve without dev team</li>
+        <li><strong>Linked via runbook_url</strong> - The alert YAML includes a <code>runbook_url</code> annotation pointing to the SOP</li>
+        <li><strong>Critical for on-call</strong> - These are used during incidents, often outside business hours</li>
+    </ul>
+
+    <h4>Team SOPs (Non-SLO)</h4>
+    <p>Located in: <code>sop/integration-service/</code> (outside the SRE folder)</p>
+    <p>These SOPs are for the development team's use. Characteristics:</p>
+    <ul>
+        <li><strong>Internal procedures</strong> - How the team handles specific situations</li>
+        <li><strong>May be less time-critical</strong> - Not used for middle-of-the-night pages</li>
+        <li><strong>Broader scope</strong> - Can cover operational tasks, not just alerts</li>
+    </ul>
+
+    <h3 id="section-2-3">Where SOPs Are Located</h3>
+
+    <p><strong>Repository:</strong> <a href="https://gitlab.cee.redhat.com/konflux/docs/sop/-/tree/main/integration-service?ref_type=heads" target="_blank">gitlab.cee.redhat.com/konflux/docs/sop</a></p>
+
+    <p><strong>Directory structure:</strong></p>
+    <div class="code-block">
+        <button class="copy-button">Copy</button>
+        <pre><code class="language-bash">sop/
+└── integration-service/
+    ├── SRE/                    # SOPs for SRE on-call (SLO alerts)
+    │   ├── alert-name-1.md
+    │   ├── alert-name-2.md
+    │   └── ...
+    └── team-procedure-1.md     # Team SOPs (non-SLO)
+    └── team-procedure-2.md
+    └── ...</code></pre>
+    </div>
+
+    <h3 id="section-2-4">How SOPs Link to Alerts</h3>
+
+    <p>For SLO alerts (<code>slo: "true"</code>), the alert YAML file includes a <code>runbook_url</code> annotation that points to the SOP:</p>
+
+    <div class="code-block">
+        <button class="copy-button">Copy</button>
+        <pre><code class="language-yaml">- alert: IntegrationServiceAvailabilitySLOViolation
+  expr: |
+    (
+      avg_over_time(redhat_appstudio_integrationservice_global_github_app_available[24h]) * 100
+    ) &lt; 99
+  for: 10m
+  labels:
+    severity: critical
+    slo: "true"
+  annotations:
+    summary: "Integration Service GitHub App availability below SLO"
+    description: "Availability is {{ $value }}%, below the 99% threshold"
+    runbook_url: "https://gitlab.cee.redhat.com/konflux/docs/sop/-/blob/main/integration-service/SRE/IntegrationServiceAvailabilitySLOViolation.md"
+    alert_team_handle: "integration-service-sre"</code></pre>
+    </div>
+
+    <p>When the alert fires, the <code>runbook_url</code> is displayed in the alert notification, giving SRE immediate access to the response procedure.</p>
+
+    <h3 id="section-2-5">Working with SOPs</h3>
+
+    <p>As an engineer, you'll typically interact with SOPs in these scenarios:</p>
+
+    <h4>Editing an Existing SOP</h4>
+    <p>When you modify an alert or fix a recurring issue, you may need to update the corresponding SOP:</p>
+    <ul>
+        <li>Update steps if the resolution procedure changes</li>
+        <li>Add new diagnostic commands based on lessons learned</li>
+        <li>Clarify ambiguous instructions</li>
+        <li>Update links to dashboards or tools</li>
+    </ul>
+
+    <h4>Creating a New SOP</h4>
+    <p>When creating a new SLO alert, write the SOP first, then link it in the alert PR. This ensures:</p>
+    <ul>
+        <li>The runbook_url points to a real document when the alert goes live</li>
+        <li>SRE can respond immediately if the alert fires</li>
+        <li>You've thought through the response procedure before the alert exists</li>
+    </ul>
+
+    <div class="callout info">
+        <div class="callout-title">ℹ️ Using Existing SOPs as Templates</div>
+        <p>There's no formal SOP template, but all existing SOPs follow a similar structure. When creating a new SOP, browse the <code>SRE/</code> folder and use an existing one as a guide for layout and sections.</p>
+    </div>
+
+    <h4>SOP Review and Approval</h4>
+    <p>SOP changes follow a review process:</p>
+    <ul>
+        <li><strong>Approvers:</strong> One Integration Service team member + one SRE</li>
+        <li><strong>SRE review focus:</strong> Ensuring steps are actionable and SRE can resolve without dev team</li>
+        <li><strong>Tagging SRE:</strong> SRE team members like to be explicitly tagged on MRs to review new/updated SOPs</li>
+    </ul>
+
+    <div class="callout warning">
+        <div class="callout-title">⚠️ Important: Actionable Steps Required</div>
+        <p>SRE SOPs must have actionable, specific steps. Vague instructions like "check the logs" aren't enough. Specify:</p>
+        <ul>
+            <li>Exact commands to run</li>
+            <li>What output to look for</li>
+            <li>How to determine if the issue is resolved</li>
+            <li>When to escalate to the dev team</li>
+        </ul>
+    </div>
+
+    <h3 id="section-2-6">Common SOP Workflow</h3>
+
+    <p>Here's the typical workflow when working with alerts and SOPs:</p>
+
+    <p><strong>When editing an existing alert:</strong></p>
+    <ol>
+        <li>Make your alert changes in the o11y repository</li>
+        <li>If the alert behavior changes, update the linked SOP</li>
+        <li>Submit both changes (alert + SOP) for review</li>
+        <li>Tag an SRE team member if the SOP changes</li>
+    </ol>
+
+    <p><strong>When creating a new SLO alert:</strong></p>
+    <ol>
+        <li><strong>First:</strong> Write the SOP with clear actionable steps</li>
+        <li>Submit the SOP for review and merge it</li>
+        <li><strong>Then:</strong> Create the alert with <code>runbook_url</code> pointing to the merged SOP</li>
+        <li>Submit the alert PR with the SOP link already working</li>
+    </ol>
+
+    <div class="callout info">
+        <div class="callout-title">ℹ️ Browse the SOP Repository</div>
+        <p>The best way to understand SOPs is to read a few examples. Visit the <a href="https://gitlab.cee.redhat.com/konflux/docs/sop/-/tree/main/integration-service?ref_type=heads" target="_blank">SOP repository</a> and browse the <code>SRE/</code> folder to see real runbooks.</p>
+    </div>
+</section>
+"""
+
+    return html
+
+
+def build_section_3_updating_dashboards(source_content: Dict[str, str]) -> str:
+    """Build Section 3: Updating Grafana Dashboards."""
+
+    push_dash_content = source_content.get('push_dash', '')
+
+    # Load dashboard screenshot images as base64
+    import base64
+    try:
+        with open("/Users/jcullina/Desktop/Screenshot 2026-05-27 at 16.26.11.png", "rb") as f:
+            img1_edit_button = base64.b64encode(f.read()).decode('utf-8')
+        with open("/Users/jcullina/Desktop/Screenshot 2026-05-27 at 16.26.22.png", "rb") as f:
+            img2_settings_button = base64.b64encode(f.read()).decode('utf-8')
+        with open("/Users/jcullina/Desktop/Screenshot 2026-05-27 at 16.26.35.png", "rb") as f:
+            img3_json_model = base64.b64encode(f.read()).decode('utf-8')
+        with open("/Users/jcullina/Desktop/Screenshot 2026-05-27 at 16.31.51.png", "rb") as f:
+            img4_panel_menu = base64.b64encode(f.read()).decode('utf-8')
+        with open("/Users/jcullina/Desktop/Screenshot 2026-05-27 at 16.32.12.png", "rb") as f:
+            img5_panel_editor = base64.b64encode(f.read()).decode('utf-8')
+    except FileNotFoundError:
+        # If images aren't found, use placeholders
+        img1_edit_button = ""
+        img2_settings_button = ""
+        img3_json_model = ""
+        img4_panel_menu = ""
+        img5_panel_editor = ""
+
+    # Build the HTML with image tags
+    img1_tag = f'<img src="data:image/png;base64,{img1_edit_button}" alt="Grafana dashboard showing Edit button highlighted in top-right corner" style="max-width: 100%; border: 1px solid #ddd; border-radius: 4px; margin: 1rem 0;" />' if img1_edit_button else '<p><em>Screenshot: Grafana dashboard header with the "Edit" button highlighted</em></p>'
+
+    img2_tag = f'<img src="data:image/png;base64,{img2_settings_button}" alt="Grafana dashboard showing Settings button highlighted in top-right corner" style="max-width: 100%; border: 1px solid #ddd; border-radius: 4px; margin: 1rem 0;" />' if img2_settings_button else '<p><em>Screenshot: Grafana dashboard with the "Settings" button highlighted</em></p>'
+
+    img3_tag = f'<img src="data:image/png;base64,{img3_json_model}" alt="Grafana Settings page showing JSON Model tab with complete dashboard JSON" style="max-width: 100%; border: 1px solid #ddd; border-radius: 4px; margin: 1rem 0;" />' if img3_json_model else '<p><em>Screenshot: Settings page with "JSON Model" tab selected, displaying the full dashboard JSON</em></p>'
+
+    img4_tag = f'<img src="data:image/png;base64,{img4_panel_menu}" alt="Grafana panel showing the three-dot menu in top-right corner with Edit option highlighted" style="max-width: 100%; border: 1px solid #ddd; border-radius: 4px; margin: 1rem 0;" />' if img4_panel_menu else '<p><em>Screenshot: Panel three-dot menu with "Edit" option</em></p>'
+
+    img5_tag = f'<img src="data:image/png;base64,{img5_panel_editor}" alt="Grafana panel editor showing queries at the bottom and panel design options on the right" style="max-width: 100%; border: 1px solid #ddd; border-radius: 4px; margin: 1rem 0;" />' if img5_panel_editor else '<p><em>Screenshot: Panel editor with queries and design layout options</em></p>'
+
+    html = """
+<section id="section-3">
+    <h2>3. Updating Grafana Dashboards</h2>
+
+    <p>Grafana dashboards visualize metrics and SLOs. You'll update dashboards to add new panels, fix queries, or change visualizations. The recommended approach is to edit dashboards in the Grafana UI, export the JSON, and save it to the repository.</p>
+
+    <h3 id="section-3-1">Where Dashboards Are Defined</h3>
     <p>Dashboards have two locations:</p>
     <ul>
-        <li><strong>Source repositories</strong> - Where dashboard JSON lives:
+        <li><strong>Source repository</strong> - Where dashboard JSON lives:
             <ul>
-                <li><code>redhat-appstudio/o11y</code></li>
-                <li><code>integration-service/o11y</code></li>
-                <li>Service-specific repos</li>
+                <li><code>redhat-appstudio/o11y/dashboards/</code> - All Integration Service dashboards</li>
             </ul>
         </li>
         <li><strong>Deployment configuration</strong> - References which commit to deploy:
             <ul>
-                <li><code>app-interface</code> (GitLab internal)</li>
+                <li><code>app-interface/data/services/stonesoup/cicd/saas-stonesoup-dashboards.yml</code> (GitLab internal)</li>
             </ul>
         </li>
     </ul>
 
-    <h3 id="section-2-2">Dashboard Development Workflow</h3>
+    <h3 id="section-3-2">Dashboard Development Workflow</h3>
+
+    <p>The recommended workflow is to edit dashboards in the Grafana UI, then export the JSON to the repository. This is <strong>much easier</strong> than editing JSON files directly.</p>
+
     <ol>
-        <li>Make changes to dashboard JSON in the source repository</li>
-        <li>Test changes (usually in staging Grafana or locally)</li>
-        <li>Commit and push changes to source repo</li>
-        <li>Update the commit SHA reference in <code>app-interface</code></li>
-        <li>Submit MR to app-interface</li>
-        <li>Changes automatically deploy to production on merge</li>
+        <li><strong>Edit the dashboard in Grafana</strong> - Make changes using Grafana's visual editor</li>
+        <li><strong>Export the JSON model</strong> - Go to Settings → JSON Model and copy the complete JSON</li>
+        <li><strong>Update the repository</strong> - Paste the JSON into the dashboard file in <code>redhat-appstudio/o11y</code></li>
+        <li><strong>Commit and merge</strong> - Push changes to the o11y repository</li>
+        <li><strong>Update app-interface</strong> - Update the commit SHA in <code>saas-stonesoup-dashboards.yml</code></li>
+        <li><strong>Changes deploy automatically</strong> - Once the app-interface MR merges</li>
     </ol>
 
-    <h3 id="section-2-3">Pushing Dashboard Changes to Production</h3>
+    <div class="callout info">
+        <div class="callout-title">ℹ️ Why Edit in Grafana UI?</div>
+        <p>Editing dashboards in the Grafana UI is much easier than manually editing JSON. You can see your changes immediately, use Grafana's panel editors, and preview queries. Once you're happy with the changes, export the JSON and save it to the repository.</p>
+    </div>
+
+    <h3 id="section-3-3">Step-by-Step: Editing a Dashboard in Grafana</h3>
+
+    <p>Here's the complete workflow for updating the Integration Service SLO dashboard:</p>
+
+    <h4>Step 1: Open the Dashboard in Grafana</h4>
+    <p>Navigate to the production Grafana dashboard you want to edit. For Integration Service dashboards:</p>
+    <ul>
+        <li><a href="https://grafana.app-sre.devshift.net/d/cerzhj80cyvi8c/konflux-integration-service?orgId=1" target="_blank">Konflux Integration Service SLO Dashboard</a></li>
+    </ul>
+
+    <h4>Step 2: Enter Edit Mode</h4>
+    <p>Click the <strong>Edit</strong> button in the top-right corner of the dashboard:</p>
+
+    """ + img1_tag + """
+
+    <p>In edit mode, you can:</p>
+    <ul>
+        <li>Click on any panel to edit it</li>
+        <li>Add new panels using the "Add panel" button</li>
+        <li>Rearrange panels by dragging them</li>
+    </ul>
+
+    <h4>Step 3: Edit a Panel</h4>
+    <p>To edit an existing panel, click the <strong>three-dot menu</strong> in the top-right corner of the panel and select <strong>Edit</strong>:</p>
+
+    """ + img4_tag + """
+
+    <h4>Step 4: Modify Panel Queries and Design</h4>
+    <p>Once in the panel editor, you can modify both the data queries and the visual design:</p>
+
+    """ + img5_tag + """
+
+    <p>The panel editor has two main areas:</p>
+    <ul>
+        <li><strong>Query section (bottom)</strong> - Update PromQL queries to change what data is displayed</li>
+        <li><strong>Panel options (right sidebar)</strong> - Modify visualization type, thresholds, colors, formatting, and layout settings</li>
+    </ul>
+
+    <p>Common changes you might make:</p>
+    <ul>
+        <li>Update PromQL queries to show different metrics</li>
+        <li>Change visualization types (graph, gauge, stat, table, etc.)</li>
+        <li>Update thresholds and alert colors</li>
+        <li>Modify panel titles and descriptions</li>
+        <li>Adjust time ranges and refresh intervals</li>
+    </ul>
+
+    <p>Test your changes by viewing the panel and ensuring the data looks correct.</p>
+
+    <h4>Step 5: Return to Dashboard</h4>
+    <p>After editing panels, click <strong>Back to dashboard</strong> (in the top-right) to return to the main dashboard view. You'll see all your changes applied.</p>
+
+    <h4>Step 6: Access Dashboard Settings</h4>
+    <p>Once you're satisfied with your changes, click the <strong>Settings</strong> button (gear icon) in the top-right corner:</p>
+
+    """ + img2_tag + """
+
+    <h4>Step 7: Export the JSON Model</h4>
+    <p>In the Settings page, click the <strong>JSON Model</strong> tab. This shows the complete JSON representation of the dashboard with all panels, queries, layout, variables, and settings:</p>
+
+    """ + img3_tag + """
+
+    <p><strong>Copy the entire JSON</strong> - Select all the JSON text and copy it to your clipboard.</p>
+
+    <h4>Step 8: Update the Dashboard File in o11y Repository</h4>
+
+    <p>Open the corresponding dashboard file in the <code>redhat-appstudio/o11y</code> repository:</p>
+
+    <div class="code-block">
+        <button class="copy-button">Copy</button>
+        <pre><code class="language-bash">cd ~/repo/o11y
+# Integration Service SLO dashboard is at:
+vim dashboards/grafana-dashboard-konflux-integration-service-slo.configmap.yaml</code></pre>
+    </div>
+
+    <p>Find the JSON content within the ConfigMap and <strong>replace it entirely</strong> with the JSON you copied from Grafana.</p>
+
+    <p>The file structure looks like this:</p>
+    <div class="code-block">
+        <button class="copy-button">Copy</button>
+        <pre><code class="language-yaml">apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-konflux-integration-service-slo
+data:
+  konflux-integration-service-slo.json: |
+    # ← Replace everything from here down with the JSON you copied from Grafana
+    {
+      "annotations": {
+        ...
+      },
+      "panels": [
+        ...
+      ],
+      ...
+    }</code></pre>
+    </div>
+
+    <div class="callout warning">
+        <div class="callout-title">⚠️ Don't Edit JSON Directly</div>
+        <p>While it's technically possible to edit dashboard JSON files manually, it's <strong>much easier and less error-prone</strong> to make changes in the Grafana UI and export the JSON. Manual JSON editing is difficult and mistakes can break the dashboard.</p>
+    </div>
+
+    <h4>Step 9: Commit and Push Changes</h4>
+
+    <div class="code-block">
+        <button class="copy-button">Copy</button>
+        <pre><code class="language-bash">git add dashboards/grafana-dashboard-konflux-integration-service-slo.configmap.yaml
+git commit -m "feat: update Integration Service SLO dashboard - add new panel for X"
+git push origin your-branch-name</code></pre>
+    </div>
+
+    <p>Create a pull request and merge once approved.</p>
+
+    <h3 id="section-3-3">Pushing Dashboard Changes to Production</h3>
+
+    <h4>Step 10: Get the Commit SHA</h4>
+
+    <p>After your PR merges to main, get the commit SHA:</p>
+    <div class="code-block">
+        <button class="copy-button">Copy</button>
+        <pre><code class="language-bash">cd ~/repo/o11y
+git pull origin main
+git log -1 --format="%H"
+# Output: abc123def456789...</code></pre>
+    </div>
+
+    <h3 id="section-3-4">Updating app-interface to Deploy to Production</h3>
 
     <p><strong>Repository:</strong> <code>gitlab.cee.redhat.com/service/app-interface</code> (GitLab internal)</p>
     <p><strong>File path:</strong> <code>data/services/stonesoup/cicd/saas-stonesoup-dashboards.yml</code></p>
 
-    <p><strong>Process:</strong></p>
-    <ol>
-        <li>Get the latest commit SHA from your dashboard changes in the source repo</li>
-        <li>Clone app-interface (if you haven't already)</li>
-        <li>Edit <code>saas-stonesoup-dashboards.yml</code></li>
-        <li>Find the dashboard entry and update the <code>ref:</code> field with the new SHA</li>
-        <li>Commit and create a merge request</li>
-        <li>Once merged, changes deploy automatically</li>
-    </ol>
+    <h4>Step 11: Clone app-interface and Update the SHA</h4>
+
+    <p>Clone app-interface (if you haven't already) and update the dashboard SHA:</p>
 
     <div class="code-block">
         <button class="copy-button">Copy</button>
-        <pre><code class="language-bash"># Step 1: Get latest commit SHA from source repo
-cd /path/to/source/repo  # e.g., integration-service/o11y
-git log -1 --format="%H"
-# Copy the SHA output
-
-# Step 2: Clone app-interface
-git clone https://gitlab.cee.redhat.com/service/app-interface.git
+        <pre><code class="language-bash">git clone https://gitlab.cee.redhat.com/service/app-interface.git
 cd app-interface
 
-# Step 3: Edit dashboard config
-vim data/services/stonesoup/cicd/saas-stonesoup-dashboards.yml
+# Edit the dashboard deployment config
+vim data/services/stonesoup/cicd/saas-stonesoup-dashboards.yml</code></pre>
+    </div>
 
-# Step 4: Update the ref field with your new SHA
-# Find the section for your dashboard and update:
-#   ref: &lt;old-sha&gt;
-# to:
-#   ref: &lt;new-sha&gt;
+    <p>Find the Integration Service dashboard section and update the <code>ref:</code> field with your new SHA:</p>
 
-# Step 5: Commit and push
-git add data/services/stonesoup/cicd/saas-stonesoup-dashboards.yml
-git commit -m "Update Integration Service dashboard to &lt;short-sha&gt;"
+    <div class="code-block">
+        <button class="copy-button">Copy</button>
+        <pre><code class="language-yaml">resourceTemplates:
+- name: stonesoup-dashboards
+  url: https://github.com/redhat-appstudio/o11y
+  path: /dashboards
+  provider: directory
+  targets:
+  - namespace:
+      $ref: /services/observability/namespaces/app-sre-observability-production-int.appsrep09ue1.yml
+    ref: abc123def456789...  # ← Update with your new SHA from step 8</code></pre>
+    </div>
+
+    <h4>Step 10: Create and Merge the app-interface MR</h4>
+
+    <div class="code-block">
+        <button class="copy-button">Copy</button>
+        <pre><code class="language-bash">git add data/services/stonesoup/cicd/saas-stonesoup-dashboards.yml
+git commit -m "Update Integration Service SLO dashboard to abc123d"
 git push origin HEAD:refs/for/master
 # This creates a merge request in GitLab</code></pre>
     </div>
 
-    <h3 id="section-2-4">Example: Updating Integration Service SLO Dashboard</h3>
-
-    <p>Suppose you added a new panel to the Integration Service SLO dashboard in the <code>integration-service</code> repo.</p>
-
-    <p><strong>Step 1:</strong> Get the commit SHA</p>
-    <div class="code-block">
-        <button class="copy-button">Copy</button>
-        <pre><code class="language-bash">cd ~/integration-service
-git log -1 --format="%H"
-# Output: abc123def456...</code></pre>
-    </div>
-
-    <p><strong>Step 2:</strong> Update app-interface</p>
-    <p>In <code>data/services/stonesoup/cicd/saas-stonesoup-dashboards.yml</code>, find the section:</p>
-
-    <div class="code-block">
-        <button class="copy-button">Copy</button>
-        <pre><code class="language-yaml">- name: integration-service-slo
-  dashboard:
-    path: dashboards/integration-service-slo.json
-  resourceTemplates:
-  - name: integration-service-dashboards
-    url: https://github.com/redhat-appstudio/integration-service
-    path: /o11y/dashboards/
-    ref: old123sha456...  # ← Update this line
-  targets:
-  - namespace:
-      $ref: /services/grafana/namespaces/grafana-prod.yml</code></pre>
-    </div>
-
-    <p>Change to:</p>
-    <div class="code-block">
-        <button class="copy-button">Copy</button>
-        <pre><code class="language-yaml">    ref: abc123def456...  # ← New SHA</code></pre>
-    </div>
+    <p>Once the MR merges, the updated dashboard automatically deploys to production.</p>
 
     <div class="callout info">
-        <div class="callout-title">ℹ️ Additional Step (Sometimes)</div>
-        <p>If you're updating dashboards in the <code>infra-deployments</code> repo, you may also need to update:</p>
-        <p><code>components/monitoring/grafana/base/dashboards/integration/kustomization.yaml</code></p>
-        <p>This depends on how the dashboard is referenced. Check with your team if unsure.</p>
+        <div class="callout-title">ℹ️ Note About infra-deployments</div>
+        <p>Integration Service dashboards are deployed via <code>app-interface</code> only. The <code>infra-deployments</code> repo has a legacy reference at <code>components/monitoring/grafana/base/dashboards/integration/kustomization.yaml</code> pointing to an old commit - this is not used for production deployments.</p>
     </div>
 </section>
 """
@@ -774,18 +1227,18 @@ git log -1 --format="%H"
     return html
 
 
-def build_section_3_testing_changes(source_content: Dict[str, str]) -> str:
-    """Build Section 3: Testing Changes."""
+def build_section_4_testing_changes(source_content: Dict[str, str]) -> str:
+    """Build Section 4: Testing Changes."""
 
     testing_content = source_content.get('testing', '')
 
     html = """
-<section id="section-3">
-    <h2>3. Testing Changes</h2>
+<section id="section-4">
+    <h2>4. Testing Changes</h2>
 
     <p>Before your alerts or dashboards go to production, you need to test them. Testing validates that your PromQL expressions work correctly and that your configuration doesn't break existing functionality. This section covers how to run the Konflux test suite locally.</p>
 
-    <h3 id="section-3-1">Why Test Your Changes</h3>
+    <h3 id="section-5-1">Why Test Your Changes</h3>
     <p>Testing is critical because:</p>
     <ul>
         <li><strong>PromQL syntax errors</strong> - A typo in your expression will cause the entire alert or dashboard to fail</li>
@@ -797,7 +1250,7 @@ def build_section_3_testing_changes(source_content: Dict[str, str]) -> str:
 
     <p>The Konflux observability infrastructure includes automated test suites that validate your changes before they go live. You can run these tests locally on your machine.</p>
 
-    <h3 id="section-3-2">Setting Up Podman</h3>
+    <h3 id="section-5-2">Setting Up Podman</h3>
 
     <p>Tests run in containers using Podman. If you don't have Podman installed, you'll need to set it up first.</p>
 
@@ -832,7 +1285,7 @@ podman machine start</code></pre>
 
     <p>You only need to run <code>podman machine init</code> once. After that, use <code>podman machine start</code> before each session.</p>
 
-    <h3 id="section-3-3">Running Tests Locally</h3>
+    <h3 id="section-5-3">Running Tests Locally</h3>
 
     <p>The test suite uses a container image that checks your PromQL syntax and validates alerting rules. There are separate tests for data plane alerts and recording rules.</p>
 
@@ -877,7 +1330,7 @@ podman run \\
         <p>The image <code>quay.io/rhobs/obsctl-reloader-rules-checker</code> is maintained by the RHOBS team. It contains validators for PromQL syntax, rule structure, and test execution.</p>
     </div>
 
-    <h3 id="section-3-4">Understanding Test Output</h3>
+    <h3 id="section-5-4">Understanding Test Output</h3>
 
     <p>Successful test runs show output like:</p>
 
@@ -904,7 +1357,7 @@ Warnings: 0</code></pre>
         <li><code>Warnings: 0</code> - No issues flagged by validators</li>
     </ul>
 
-    <h3 id="section-3-5">Common Test Failures and Fixes</h3>
+    <h3 id="section-4-5">Common Test Failures and Fixes</h3>
 
     <h4>PromQL Syntax Errors</h4>
     <p><strong>Error:</strong></p>
@@ -967,7 +1420,7 @@ ls -la test/promql/tests/</code></pre>
         <pre><code class="language-bash">podman pull quay.io/rhobs/obsctl-reloader-rules-checker:latest</code></pre>
     </div>
 
-    <h3 id="section-3-6">References and Additional Resources</h3>
+    <h3 id="section-4-6">References and Additional Resources</h3>
 
     <ul>
         <li><strong>o11y repository:</strong> <a href="https://github.com/redhat-appstudio/o11y" target="_blank">redhat-appstudio/o11y</a></li>
@@ -992,8 +1445,8 @@ ls -la test/promql/tests/</code></pre>
     return html
 
 
-def build_section_4_reference(source_content: Dict[str, str]) -> str:
-    """Build Section 4: Reference Materials - Observability, SLOs, Dashboards, and Tools."""
+def build_section_5_reference(source_content: Dict[str, str]) -> str:
+    """Build Section 5: Reference Materials - Observability, SLOs, Dashboards, and Tools."""
 
     # Extract dashboard links dynamically
     dashboards_content = source_content.get('dashboards', '')
@@ -1001,12 +1454,12 @@ def build_section_4_reference(source_content: Dict[str, str]) -> str:
 
     # Part 1: Observability & SLO content (static HTML, ~85 lines)
     html = """
-<section id="section-4">
-    <h2>4. Reference Materials</h2>
+<section id="section-5">
+    <h2>5. Reference Materials</h2>
 
     <p>This section provides reference material for common tasks, including observability concepts, SLO definitions, dashboard links, graph types, and troubleshooting resources.</p>
 
-    <h3 id="section-4-1">Understanding Observability & SLOs</h3>
+    <h3 id="section-5-1">Understanding Observability & SLOs</h3>
 
     <p>Observability is the practice of understanding system behavior by examining its outputs. The three pillars of observability are:</p>
 
@@ -1037,7 +1490,7 @@ def build_section_4_reference(source_content: Dict[str, str]) -> str:
         <li><strong>Dependencies</strong> - How services interact</li>
     </ul>
 
-    <h3 id="section-4-2">Service Level Objectives (SLOs)</h3>
+    <h3 id="section-5-2">Service Level Objectives (SLOs)</h3>
 
     <p>An SLO is a target for how well a service should perform. SLOs have three components:</p>
 
@@ -1065,7 +1518,7 @@ def build_section_4_reference(source_content: Dict[str, str]) -> str:
         <p>If your SLO is 99% availability, you have a 1% "error budget" per month. This is how much downtime you can have before violating the SLO. Once the budget is exhausted, you must focus on stability over new features.</p>
     </div>
 
-    <h3 id="section-4-3">Dashboard Links</h3>
+    <h3 id="section-5-3">Dashboard Links</h3>
 
     <p>Use these dashboards to monitor Konflux metrics and SLOs:</p>
 """
@@ -1095,7 +1548,7 @@ def build_section_4_reference(source_content: Dict[str, str]) -> str:
 
     # Part 3: Graph types, troubleshooting, useful links (~125 lines)
     html += """
-    <h3 id="section-4-4">Graph Types in Grafana</h3>
+    <h3 id="section-5-4">Graph Types in Grafana</h3>
 
     <p>Grafana supports several visualization types. Choose the right visualization for your data:</p>
 
@@ -1234,7 +1687,7 @@ def generate_html(content_sections: Dict[str, str], toc_items: List[Dict]) -> st
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Konflux Metrics: Modifying Alerts & Dashboards - Training Guide</title>
+    <title>Integration Team Metrics: Modifying Alerts & Dashboards - Training Guide</title>
     <style>{PRISM_CSS}</style>
     <style>{MAIN_CSS}</style>
 </head>
@@ -1246,8 +1699,8 @@ def generate_html(content_sections: Dict[str, str], toc_items: List[Dict]) -> st
 
     <main class="content">
         <header>
-            <h1>Konflux Metrics: Modifying Alerts & Dashboards</h1>
-            <p class="subtitle">A Practical Guide for Junior Engineers</p>
+            <h1>Integration Team Metrics: Modifying Alerts & Dashboards</h1>
+            <p class="subtitle">A Practical Guide for Engineers</p>
             <p class="intro">This guide will help you understand how to modify existing metrics, update dashboards, and test changes in the Konflux observability infrastructure. Learn by doing - each section focuses on practical tasks with embedded concepts.</p>
         </header>
 
@@ -1298,14 +1751,17 @@ if __name__ == "__main__":
     print("  Building Section 1: Modifying Alerts...")
     content_sections['section-1'] = build_section_1_modifying_alerts(source_content)
 
-    print("  Building Section 2: Updating Dashboards...")
-    content_sections['section-2'] = build_section_2_updating_dashboards(source_content)
+    print("  Building Section 2: Standard Operating Procedures...")
+    content_sections['section-2'] = build_section_2_sops(source_content)
 
-    print("  Building Section 3: Testing Changes...")
-    content_sections['section-3'] = build_section_3_testing_changes(source_content)
+    print("  Building Section 3: Updating Dashboards...")
+    content_sections['section-3'] = build_section_3_updating_dashboards(source_content)
 
-    print("  Building Section 4: Reference Materials...")
-    content_sections['section-4'] = build_section_4_reference(source_content)
+    print("  Building Section 4: Testing Changes...")
+    content_sections['section-4'] = build_section_4_testing_changes(source_content)
+
+    print("  Building Section 5: Reference Materials...")
+    content_sections['section-5'] = build_section_5_reference(source_content)
 
     # Table of contents structure
     toc_items = [
@@ -1318,41 +1774,54 @@ if __name__ == "__main__":
                 {"id": "section-1-3", "title": "Understanding Alert Structure"},
                 {"id": "section-1-4", "title": "Common Modifications"},
                 {"id": "section-1-5", "title": "Real-World Example"},
+                {"id": "section-1-6", "title": "Updating Alert and Recording Rule Tests"},
             ]
         },
         {
             "id": "section-2",
-            "title": "2. Updating Grafana Dashboards",
+            "title": "2. Standard Operating Procedures (SOPs)",
             "children": [
-                {"id": "section-2-1", "title": "Where Dashboards Are Defined"},
-                {"id": "section-2-2", "title": "Dashboard Development Workflow"},
-                {"id": "section-2-3", "title": "Pushing Dashboard Changes to Production"},
-                {"id": "section-2-4", "title": "Example: Updating Integration Service SLO Dashboard"},
+                {"id": "section-2-1", "title": "What Are SOPs?"},
+                {"id": "section-2-2", "title": "Two Categories of SOPs"},
+                {"id": "section-2-3", "title": "Where SOPs Are Located"},
+                {"id": "section-2-4", "title": "How SOPs Link to Alerts"},
+                {"id": "section-2-5", "title": "Working with SOPs"},
+                {"id": "section-2-6", "title": "Common SOP Workflow"},
             ]
         },
         {
             "id": "section-3",
-            "title": "3. Testing Changes",
+            "title": "3. Updating Grafana Dashboards",
             "children": [
-                {"id": "section-3-1", "title": "Why Test Your Changes"},
-                {"id": "section-3-2", "title": "Setting Up Podman"},
-                {"id": "section-3-3", "title": "Running Tests Locally"},
-                {"id": "section-3-4", "title": "Understanding Test Output"},
-                {"id": "section-3-5", "title": "Common Test Failures and Fixes"},
-                {"id": "section-3-6", "title": "References and Additional Resources"},
+                {"id": "section-3-1", "title": "Where Dashboards Are Defined"},
+                {"id": "section-3-2", "title": "Dashboard Development Workflow"},
+                {"id": "section-3-3", "title": "Step-by-Step: Editing a Dashboard in Grafana"},
+                {"id": "section-3-4", "title": "Updating app-interface to Deploy to Production"},
             ]
         },
         {
             "id": "section-4",
-            "title": "4. Reference Materials",
+            "title": "4. Testing Changes",
             "children": [
-                {"id": "section-4-1", "title": "Understanding Observability & SLOs"},
-                {"id": "section-4-2", "title": "Service Level Objectives (SLOs)"},
-                {"id": "section-4-3", "title": "Dashboard Links"},
-                {"id": "section-4-4", "title": "Graph Types in Grafana"},
-                {"id": "section-4-5", "title": "Troubleshooting Tips"},
-                {"id": "section-4-6", "title": "Useful Resources and Links"},
-                {"id": "section-4-7", "title": "Quick Reference: Common PromQL Functions"},
+                {"id": "section-4-1", "title": "Why Test Your Changes"},
+                {"id": "section-4-2", "title": "Setting Up Podman"},
+                {"id": "section-4-3", "title": "Running Tests Locally"},
+                {"id": "section-4-4", "title": "Understanding Test Output"},
+                {"id": "section-4-5", "title": "Common Test Failures and Fixes"},
+                {"id": "section-4-6", "title": "References and Additional Resources"},
+            ]
+        },
+        {
+            "id": "section-5",
+            "title": "5. Reference Materials",
+            "children": [
+                {"id": "section-5-1", "title": "Understanding Observability & SLOs"},
+                {"id": "section-5-2", "title": "Service Level Objectives (SLOs)"},
+                {"id": "section-5-3", "title": "Dashboard Links"},
+                {"id": "section-5-4", "title": "Graph Types in Grafana"},
+                {"id": "section-5-5", "title": "Troubleshooting Tips"},
+                {"id": "section-5-6", "title": "Useful Resources and Links"},
+                {"id": "section-5-7", "title": "Quick Reference: Common PromQL Functions"},
             ]
         },
     ]
