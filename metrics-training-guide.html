@@ -310,7 +310,7 @@ a[target="_blank"]::after {
 <body>
     <aside class="sidebar">
         <h2>Table of Contents</h2>
-        <nav><ul><li><a href="#section-1">1. Modifying Alerts in the o11y Repository</a><ul><li><a href="#section-1-1">What Alerts Are and Why We Modify Them</a></li><li><a href="#section-1-2">File Locations</a></li><li><a href="#section-1-3">Understanding Alert Structure</a></li><li><a href="#section-1-4">Common Modifications</a></li><li><a href="#section-1-5">Real-World Example</a></li><li><a href="#section-1-6">Updating Alert and Recording Rule Tests</a></li></ul></li><li><a href="#section-2">2. Standard Operating Procedures (SOPs)</a><ul><li><a href="#section-2-1">What Are SOPs?</a></li><li><a href="#section-2-2">Two Categories of SOPs</a></li><li><a href="#section-2-3">Where SOPs Are Located</a></li><li><a href="#section-2-4">How SOPs Link to Alerts</a></li><li><a href="#section-2-5">Working with SOPs</a></li><li><a href="#section-2-6">Common SOP Workflow</a></li></ul></li><li><a href="#section-3">3. Updating Grafana Dashboards</a><ul><li><a href="#section-3-1">Where Dashboards Are Defined</a></li><li><a href="#section-3-2">Dashboard Development Workflow</a></li><li><a href="#section-3-3">Step-by-Step: Editing a Dashboard in Grafana</a></li><li><a href="#section-3-4">Updating app-interface to Deploy to Production</a></li></ul></li><li><a href="#section-4">4. Testing Changes</a><ul><li><a href="#section-4-1">Why Test Your Changes</a></li><li><a href="#section-4-2">Setting Up Podman</a></li><li><a href="#section-4-3">Running Tests Locally</a></li><li><a href="#section-4-4">Understanding Test Output</a></li><li><a href="#section-4-5">Common Test Failures and Fixes</a></li><li><a href="#section-4-6">References and Additional Resources</a></li></ul></li><li><a href="#section-5">5. Reference Materials</a><ul><li><a href="#section-5-1">Understanding Observability & SLOs</a></li><li><a href="#section-5-2">Service Level Objectives (SLOs)</a></li><li><a href="#section-5-3">Dashboard Links</a></li><li><a href="#section-5-4">Graph Types in Grafana</a></li><li><a href="#section-5-5">Troubleshooting Tips</a></li><li><a href="#section-5-6">Useful Resources and Links</a></li><li><a href="#section-5-7">Quick Reference: Common PromQL Functions</a></li></ul></li></ul></nav>
+        <nav><ul><li><a href="#section-1">1. Modifying Alerts in the o11y Repository</a><ul><li><a href="#section-1-1">What Alerts Are and Why We Modify Them</a></li><li><a href="#section-1-2">File Locations</a></li><li><a href="#section-1-3">Understanding Alert Structure</a></li><li><a href="#section-1-4">Common Modifications</a></li><li><a href="#section-1-5">Real-World Example</a></li><li><a href="#section-1-6">Updating Alert and Recording Rule Tests</a></li><li><a href="#section-1-7">Committing and Creating Pull Requests</a></li></ul></li><li><a href="#section-2">2. Standard Operating Procedures (SOPs)</a><ul><li><a href="#section-2-1">What Are SOPs?</a></li><li><a href="#section-2-2">Two Categories of SOPs</a></li><li><a href="#section-2-3">Where SOPs Are Located</a></li><li><a href="#section-2-4">How SOPs Link to Alerts</a></li><li><a href="#section-2-5">Working with SOPs</a></li><li><a href="#section-2-6">Common SOP Workflow</a></li></ul></li><li><a href="#section-3">3. Updating Grafana Dashboards</a><ul><li><a href="#section-3-1">Where Dashboards Are Defined</a></li><li><a href="#section-3-2">Dashboard Development Workflow</a></li><li><a href="#section-3-3">Step-by-Step: Editing a Dashboard in Grafana</a></li><li><a href="#section-3-4">Updating app-interface to Deploy to Production</a></li></ul></li><li><a href="#section-4">4. Testing Changes</a><ul><li><a href="#section-4-1">Why Test Your Changes</a></li><li><a href="#section-4-2">Setting Up Podman</a></li><li><a href="#section-4-3">Running Tests Locally</a></li><li><a href="#section-4-4">Understanding Test Output</a></li><li><a href="#section-4-5">Common Test Failures and Fixes</a></li><li><a href="#section-4-6">References and Additional Resources</a></li></ul></li><li><a href="#section-5">5. Reference Materials</a><ul><li><a href="#section-5-1">Understanding Observability & SLOs</a></li><li><a href="#section-5-2">Service Level Objectives (SLOs)</a></li><li><a href="#section-5-3">Dashboard Links</a></li><li><a href="#section-5-4">Graph Types in Grafana</a></li><li><a href="#section-5-5">Troubleshooting Tips</a></li><li><a href="#section-5-6">Useful Resources and Links</a></li><li><a href="#section-5-7">Quick Reference: Common PromQL Functions</a></li></ul></li></ul></nav>
     </aside>
 
     <main class="content">
@@ -646,6 +646,28 @@ values: '1x1431 0x9'</code></pre>
         <div class="callout-title">ℹ️ Test File Reference</div>
         <p>Each test file references its corresponding alert or recording rule file using the <code>rule_files:</code> field. This tells the test runner which YAML file to load for validation.</p>
     </div>
+
+    <h3 id="section-1-7">Committing and Creating Pull Requests</h3>
+
+    <p>After making changes to alert YAML files and updating tests, commit your changes and create a pull request:</p>
+
+    <div class="code-block">
+        <button class="copy-button">Copy</button>
+        <pre><code class="language-bash">cd ~/repo/o11y
+git add rhobs/alerting/data_plane/prometheus.*_alerts.yaml
+git add test/promql/tests/data_plane/*_test.yaml
+git commit -m "feat: update Integration Service availability alert threshold"
+git push origin your-branch-name</code></pre>
+    </div>
+
+    <p>Create a pull request for your changes.</p>
+
+    <div class="callout info">
+        <div class="callout-title">📢 Notify the Team</div>
+        <p>After creating your PR in the O11Y repository, post the PR link to the <strong>#forum-konflux-o11y</strong> Slack channel (<a href="https://redhat.enterprise.slack.com/archives/C04FDFTF8EB" target="_blank">link</a>) and tag <code>@konflux-o11y-ic</code> to request approval.</p>
+    </div>
+
+    <p>Once approved and merged, your alert changes will be automatically deployed to production via the RHOBS pipeline.</p>
 </section>
 
 <section id="section-2">
@@ -948,7 +970,14 @@ git commit -m "feat: update Integration Service SLO dashboard - add new panel fo
 git push origin your-branch-name</code></pre>
     </div>
 
-    <p>Create a pull request and merge once approved.</p>
+    <p>Create a pull request for your changes.</p>
+
+    <div class="callout info">
+        <div class="callout-title">📢 Notify the Team</div>
+        <p>After creating your PR in the O11Y repository, post the PR link to the <strong>#forum-konflux-o11y</strong> Slack channel (<a href="https://redhat.enterprise.slack.com/archives/C04FDFTF8EB" target="_blank">link</a>) and tag <code>@konflux-o11y-ic</code> to request approval.</p>
+    </div>
+
+    <p>Once the PR is approved and merged, proceed to deploy the changes to production.</p>
 
     <h3 id="section-3-3">Pushing Dashboard Changes to Production</h3>
 

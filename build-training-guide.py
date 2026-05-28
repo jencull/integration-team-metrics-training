@@ -805,6 +805,28 @@ values: '1x1431 0x9'</code></pre>
         <div class="callout-title">ℹ️ Test File Reference</div>
         <p>Each test file references its corresponding alert or recording rule file using the <code>rule_files:</code> field. This tells the test runner which YAML file to load for validation.</p>
     </div>
+
+    <h3 id="section-1-7">Committing and Creating Pull Requests</h3>
+
+    <p>After making changes to alert YAML files and updating tests, commit your changes and create a pull request:</p>
+
+    <div class="code-block">
+        <button class="copy-button">Copy</button>
+        <pre><code class="language-bash">cd ~/repo/o11y
+git add rhobs/alerting/data_plane/prometheus.*_alerts.yaml
+git add test/promql/tests/data_plane/*_test.yaml
+git commit -m "feat: update Integration Service availability alert threshold"
+git push origin your-branch-name</code></pre>
+    </div>
+
+    <p>Create a pull request for your changes.</p>
+
+    <div class="callout info">
+        <div class="callout-title">📢 Notify the Team</div>
+        <p>After creating your PR in the O11Y repository, post the PR link to the <strong>#forum-konflux-o11y</strong> Slack channel (<a href="https://redhat.enterprise.slack.com/archives/C04FDFTF8EB" target="_blank">link</a>) and tag <code>@konflux-o11y-ic</code> to request approval.</p>
+    </div>
+
+    <p>Once approved and merged, your alert changes will be automatically deployed to production via the RHOBS pipeline.</p>
 </section>
 """
 
@@ -1157,7 +1179,14 @@ git commit -m "feat: update Integration Service SLO dashboard - add new panel fo
 git push origin your-branch-name</code></pre>
     </div>
 
-    <p>Create a pull request and merge once approved.</p>
+    <p>Create a pull request for your changes.</p>
+
+    <div class="callout info">
+        <div class="callout-title">📢 Notify the Team</div>
+        <p>After creating your PR in the O11Y repository, post the PR link to the <strong>#forum-konflux-o11y</strong> Slack channel (<a href="https://redhat.enterprise.slack.com/archives/C04FDFTF8EB" target="_blank">link</a>) and tag <code>@konflux-o11y-ic</code> to request approval.</p>
+    </div>
+
+    <p>Once the PR is approved and merged, proceed to deploy the changes to production.</p>
 
     <h3 id="section-3-3">Pushing Dashboard Changes to Production</h3>
 
@@ -1775,6 +1804,7 @@ if __name__ == "__main__":
                 {"id": "section-1-4", "title": "Common Modifications"},
                 {"id": "section-1-5", "title": "Real-World Example"},
                 {"id": "section-1-6", "title": "Updating Alert and Recording Rule Tests"},
+                {"id": "section-1-7", "title": "Committing and Creating Pull Requests"},
             ]
         },
         {
