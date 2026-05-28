@@ -977,20 +977,22 @@ git push origin your-branch-name</code></pre>
         <p>After creating your PR in the O11Y repository, post the PR link to the <strong>#forum-konflux-o11y</strong> Slack channel (<a href="https://redhat.enterprise.slack.com/archives/C04FDFTF8EB" target="_blank">link</a>) and tag <code>@konflux-o11y-ic</code> to request approval.</p>
     </div>
 
-    <p>Once the PR is approved and merged, proceed to deploy the changes to production.</p>
+    <p>Once the PR is approved and merged, the dashboard changes are saved in the O11Y repository. However, <strong>they won't appear in production until you update app-interface</strong> with the new commit SHA (see next section).</p>
 
     <h3 id="section-3-3">Pushing Dashboard Changes to Production</h3>
 
-    <h4>Step 10: Get the Commit SHA</h4>
+    <h4>Step 10: Get the Latest O11Y Repository SHA</h4>
 
-    <p>After your PR merges to main, get the commit SHA:</p>
+    <p>After your dashboard PR merges to main in the O11Y repository, get the most recent SHA of the entire O11Y repository (not just your commit):</p>
     <div class="code-block">
         <button class="copy-button">Copy</button>
         <pre><code class="language-bash">cd ~/repo/o11y
 git pull origin main
 git log -1 --format="%H"
-# Output: abc123def456789...</code></pre>
+# Output: abc123def456789... (this is the SHA of the latest commit on main)</code></pre>
     </div>
+
+    <p>This SHA represents the current state of the entire O11Y repository, including your dashboard changes and any other recent commits.</p>
 
     <h3 id="section-3-4">Updating app-interface to Deploy to Production</h3>
 
@@ -1022,10 +1024,10 @@ vim data/services/stonesoup/cicd/saas-stonesoup-dashboards.yml</code></pre>
   targets:
   - namespace:
       $ref: /services/observability/namespaces/app-sre-observability-production-int.appsrep09ue1.yml
-    ref: abc123def456789...  # ← Update with your new SHA from step 8</code></pre>
+    ref: abc123def456789...  # ← Update with the O11Y repo SHA from Step 10</code></pre>
     </div>
 
-    <h4>Step 10: Create and Merge the app-interface MR</h4>
+    <h4>Step 12: Create and Merge the app-interface MR</h4>
 
     <div class="code-block">
         <button class="copy-button">Copy</button>
@@ -1035,7 +1037,12 @@ git push origin HEAD:refs/for/master
 # This creates a merge request in GitLab</code></pre>
     </div>
 
-    <p>Once the MR merges, the updated dashboard automatically deploys to production.</p>
+    <div class="callout info">
+        <div class="callout-title">📢 Request Approval for app-interface MR</div>
+        <p>After creating your app-interface MR, post the MR link to the <strong>#forum-konflux-o11y</strong> Slack channel (<a href="https://redhat.enterprise.slack.com/archives/C04FDFTF8EB" target="_blank">link</a>) and tag <code>@konflux-o11y-ic</code> to request approval for the production deployment.</p>
+    </div>
+
+    <p>Once the app-interface MR is approved and merged, the updated dashboard automatically deploys to production.</p>
 
     <div class="callout info">
         <div class="callout-title">ℹ️ Note About infra-deployments</div>
