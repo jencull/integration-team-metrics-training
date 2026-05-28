@@ -40,10 +40,11 @@ python3 build-training-guide.py
 
 ## What's Covered
 
-1. **Modifying Alerts** - Change severity, update SLO status, modify thresholds
-2. **Updating Dashboards** - Push dashboard changes to production
-3. **Testing Changes** - Run PromQL tests locally with podman
-4. **Reference Materials** - Observability concepts, SLO overview, dashboard links, troubleshooting
+1. **Modifying Alerts** - Change severity, update SLO status, modify thresholds, update tests
+2. **Standard Operating Procedures** - SRE and team SOPs, linking to alerts
+3. **Updating Dashboards** - Edit in Grafana UI, export JSON, deploy to production
+4. **Testing Changes** - Run PromQL tests locally with podman
+5. **Reference Materials** - Observability concepts, SLO overview, dashboard links, troubleshooting
 
 ## Technical Details
 
@@ -65,4 +66,4 @@ Built from Obsidian vault files in `ObsidianVault/Metrics/`:
 
 ## Last Updated
 
-2026-05-26
+2026-05-27
